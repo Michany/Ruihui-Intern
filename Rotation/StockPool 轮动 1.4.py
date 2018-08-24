@@ -134,7 +134,7 @@ def Sell(**arg):
             print("卖出 {:.1f} 份 {}".format(amount, symbol), day.strftime("%Y-%m-%d"))
     else:
         amount = share[-1][symbol] * percentage
-        print(day.strftime("%Y-%m-%d"), "卖出 {:.1f} 份 {}\n".format(amount, symbol),"({:.1%} 持仓)".format(percentage), "卖价", price)
+        print(day.strftime("%Y-%m-%d"), "卖出 {:.1f} 份 {}".format(amount, symbol),"({:.1%} 持仓)".format(percentage), "卖价", price)
     
     share_today[symbol] = share[-1][symbol] - amount
     balance_today[symbol] = share_today[symbol] * price
@@ -173,6 +173,7 @@ def Buy(**arg):
         amount = share[-1][symbol] * percentage
     share_today[symbol] = share[-1][symbol] + amount
     balance_today[symbol] = capital_balance[-1][symbol]+ amount * price
+    
     # 终于找到bug了！忘记在买入的那天记录当日盈亏！
     profit_today[day] = profit_today.get(day, 0) + price_diff.loc[day, symbol] * share[-1][symbol] 
 
