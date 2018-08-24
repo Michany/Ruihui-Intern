@@ -1,13 +1,14 @@
 """
-读取本地股价数据
-改写为定投
-回测过程 函数改写
+Based on Version 1.4
+--------------------
+- 读取数据库价格
 """
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import talib
 import time
+from data_reader import get_muti_close_day, get_index_day
 
 # STOCK_POOL = ['600000.SH', '600015.SH', '600029.SH', '600039.SZ', '600059.SZ', '600085.SH', '600132.SH']
 STOCK_POOL = ['600048.SH', '600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
@@ -21,29 +22,9 @@ Profit_Ceiling = [0.3, 0.2] #止盈线
 Trailing_Percentage = 0.2 #优先止盈百分比
 
 # %% 获取收盘数据
-t1 = pd.read_excel(
-    r"C:\Users\meiconte\Documents\RH\Historical Data\TRD_Dalyr_08-12.xlsx",
-    dtype={"date": "datetime64", "code": str},
-)
-t2 = pd.read_excel(
-    r"C:\Users\meiconte\Documents\RH\Historical Data\TRD_Dalyr_13-18.xlsx",
-    dtype={"date": "datetime64", "code": str},
-)
-t3 = pd.read_excel(
-    r"C:\Users\meiconte\Documents\RH\Historical Data\TRD_Dalyr_18.xlsx",
-    dtype={"date": "datetime64", "code": str},
-)
-t1.drop(columns=["open", "high", "low"], inplace=True)
-t = t1.append(t2).append(t3)
-# t = pd.read_excel(r"C:\Users\meiconte\Documents\RH\Historical Data\test.xlsx",dtype={'date': 'datetime64', 'code': str})
-t.set_index("date", inplace=True)
 
-tgroups = t.groupby("code")
-price = {}
-for symbol in STOCK_POOL:
-    code = symbol[:-3]
-    price[symbol] = tgroups.get_group(code).close
-price = pd.DataFrame(price)
+price = get_muti_close_day(STOCK_POOL,START_DATE,END_DATE)
+
 price.fillna(method="ffill", inplace=True)
 print("Historical Price Loaded!")
 
@@ -134,7 +115,7 @@ def Sell(**arg):
             print("卖出 {:.1f} 份 {}".format(amount, symbol), day.strftime("%Y-%m-%d"))
     else:
         amount = share[-1][symbol] * percentage
-        print(day.strftime("%Y-%m-%d"), "卖出 {:.1f} 份 {}".format(amount, symbol),"({:.1%} 持仓)".format(percentage), "卖价", price)
+        print(day.strftime("%Y-%m-%d"), "卖出 {:.2f} 份 {}".format(amount, symbol),"({:.1%} 持仓)".format(percentage), "卖价", price)
     
     share_today[symbol] = share[-1][symbol] - amount
     balance_today[symbol] = share_today[symbol] * price
