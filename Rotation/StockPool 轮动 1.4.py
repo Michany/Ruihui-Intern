@@ -14,8 +14,8 @@ STOCK_POOL = ['600048.SH', '600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '
 # STOCK_POOL = ["000651.SH"]
 START_DATE = "2008-01-01"
 END_DATE = "2018-08-16"
-INITIAL_CAPITAL = 300
-CAPITAL = INITIAL_CAPITAL / 3
+INITIAL_CAPITAL = 1000
+# CAPITAL = INITIAL_CAPITAL / 3
 DURATION = 10 * 5
 Profit_Ceiling = [0.3, 0.2] #止盈线
 Trailing_Percentage = 0.2 #优先止盈百分比
@@ -134,7 +134,7 @@ def Sell(**arg):
             print("卖出 {:.1f} 份 {}".format(amount, symbol), day.strftime("%Y-%m-%d"))
     else:
         amount = share[-1][symbol] * percentage
-        print(day.strftime("%Y-%m-%d"), "卖出 {:.1f} 份 {}\n".format(amount, symbol),"({:.1%} 持仓)".format(percentage), price)
+        print(day.strftime("%Y-%m-%d"), "卖出 {:.1f} 份 {}\n".format(amount, symbol),"({:.1%} 持仓)".format(percentage), "卖价", price)
     
     share_today[symbol] = share[-1][symbol] - amount
     balance_today[symbol] = share_today[symbol] * price
@@ -173,13 +173,16 @@ def Buy(**arg):
         amount = share[-1][symbol] * percentage
     share_today[symbol] = share[-1][symbol] + amount
     balance_today[symbol] = capital_balance[-1][symbol]+ amount * price
+    # 终于找到bug了！忘记在买入的那天记录当日盈亏！
+    profit_today[day] = profit_today.get(day, 0) + price_diff.loc[day, symbol] * share[-1][symbol] 
+
     # 平均成本 = (原平均成本 * 原份数 + 新买入份数 * 买入价格) / 总份数
     平均成本[symbol] = (平均成本[symbol] * share[-1][symbol] + amount * price) / share_today[symbol]
     
     # 累计投入 = 原累计投入 + 新买入份数 * 买入价格
     累计投入[symbol] += amount * price
     
-    print(day.strftime("%Y-%m-%d"), "买入 {:.1f}份 {}, 当前平均成本 {:.2f}".format(amount, symbol, 平均成本[symbol]))
+    print(day.strftime("%Y-%m-%d"), "买入 {:.1f}份 {}, 当前平均成本 {:.2f}".format(amount, symbol, 平均成本[symbol]), end='\r')
     return "买入成功"
 def Check_Signal():
     '''
@@ -197,8 +200,7 @@ def Check_Signal():
       }
     '''
     BUY_SIGNALS, SELL_SIGNALS = dict(), dict()
-    total_capital_required = 0
-    total_capital_available = 1000
+    total_share_required = 0
     for symbol in STOCK_POOL:
         SELL_SIGNALS[symbol] = {}
         BUY_SIGNALS[symbol] = {}
@@ -208,10 +210,10 @@ def Check_Signal():
             SELL_SIGNALS[symbol]["部分止盈"] = {'symbol':symbol, 'percentage':Trailing_Percentage, 'price':price.loc[day, symbol]}
         elif pos.loc[day, symbol] > 0:
             BUY_SIGNALS[symbol]["定投买入"] = {'symbol':symbol, 'amount':pos.loc[day, symbol], 'price':price.loc[day, symbol]}
-            total_capital_required += pos.loc[day, symbol] * price.loc[day, symbol]
+            total_share_required += pos.loc[day, symbol] 
     for symbol in STOCK_POOL:
         try:
-            BUY_SIGNALS[symbol]["定投买入"]['amount'] *= total_capital_available/total_capital_required
+            BUY_SIGNALS[symbol]["定投买入"]['amount'] *= INITIAL_CAPITAL/total_share_required / price.loc[day, symbol]
         except:
             pass
             
