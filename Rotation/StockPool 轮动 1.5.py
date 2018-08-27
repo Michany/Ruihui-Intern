@@ -8,23 +8,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 import talib
 import time
-from data_reader import get_muti_close_day, get_index_day
+from data_reader import get_muti_close_day, get_index_day, get_stock_day
 
-# STOCK_POOL = ['600000.SH', '600015.SH', '600029.SH', '600039.SZ', '600059.SZ', '600085.SH', '600132.SH']
-STOCK_POOL = ['600048.SH', '600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
-# STOCK_POOL = ["000651.SH"]
+STOCK_POOL = ['000016.SH','000905.SH','000009.SH','000991.SH','000935.SH','000036.SH']
+#STOCK_POOL = ['600048.SH', '600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
+# STOCK_POOL = ["600519.SH"]
 START_DATE = "2008-01-01"
-END_DATE = "2018-08-16"
+END_DATE = "2018-08-24"
 INITIAL_CAPITAL = 1000
 # CAPITAL = INITIAL_CAPITAL / 3
 DURATION = 10 * 5
-Profit_Ceiling = [0.3, 0.2] #止盈线
-Trailing_Percentage = 0.2 #优先止盈百分比
+Profit_Ceiling = [0.4, 0.2] #止盈线
+Trailing_Percentage = 0.1 #优先止盈百分比
 
 # %% 获取收盘数据
 
-price = get_muti_close_day(STOCK_POOL,START_DATE,END_DATE)
-
+# price = get_muti_close_day(STOCK_POOL,START_DATE,END_DATE)
+# df = get_index_day('600519.SH',START_DATE,END_DATE)
+price = {}
+for symbol in STOCK_POOL:
+    price[symbol] = get_index_day(symbol,START_DATE,END_DATE).sclose
+price = pd.DataFrame(price)
 price.fillna(method="ffill", inplace=True)
 print("Historical Price Loaded!")
 
@@ -41,7 +45,7 @@ mu = (price / price.shift(DURATION)).apply(np.log) + 0.5 * np.sqrt(sigma)
 
 # %% 策略部分 分配仓位
 # 买入时机
-is_entry_time = np.square(sigma * 3) - mu > -0.3
+is_entry_time = np.square(sigma * 3) - mu > 0
 percent_chg = (price / price.shift(int(DURATION/2))) - 1
 
 # 赋权重(仓位)
@@ -224,7 +228,8 @@ t1 = time.time()
 tpy = t1 - t0
 print('回测已完成，用时 %5.3f 秒' % tpy)
 # 转换数据类型
-share = pd.DataFrame(share).set_index("date")
+share = pd.DataFrame(share).set_index("date")#.rename(columns={'600519.SH':'shares'})
+#investment = investment.rename(columns={'600519.SH':'资金投入'})
 capital_balance = pd.DataFrame(capital_balance).set_index("date")
 
 
@@ -239,14 +244,14 @@ confirmed_profit = dict_to_df(confirmed_profit, "confirmed_profit").cumsum()
 #average_cost = dict_to_df(average_cost, "average_cost")
 #investment = dict_to_df(investment, "investment")
 
-
+#average_cost = average_cost.rename(columns={'600519.SH':"average_cost"})
 average_cost.plot(title="持股平均成本")
 investment.plot(title="投入资金")
 plt.show()
 
 print("\n----- 策略回测报告 -----")
 print("投入资金平均值\t￥{:.2f}".format(investment.T.sum().mean()))
-rate_of_return = accumulated_profit.iloc[-1,0]/investment.T.sum().mean()-1
+rate_of_return = accumulated_profit.iloc[-1,0]/investment.T.sum().mean()
 print("总收益率\t{:.2%}".format(rate_of_return))
 # print("平均年化收益\t",)
 # print(
@@ -260,7 +265,7 @@ print("总收益率\t{:.2%}".format(rate_of_return))
 
 
 # %% 绘制最终收益率曲线
-profit_summary = pd.concat([confirmed_profit, accumulated_profit, profit_today], axis=1)
+profit_summary = pd.concat([price,investment,share,average_cost,confirmed_profit, accumulated_profit, profit_today], axis=1)
 profit_summary.fillna(method="ffill", inplace=True)
 # 最终版
 

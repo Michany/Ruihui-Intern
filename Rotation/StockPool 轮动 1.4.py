@@ -134,7 +134,7 @@ def Sell(**arg):
             print("卖出 {:.1f} 份 {}".format(amount, symbol), day.strftime("%Y-%m-%d"))
     else:
         amount = share[-1][symbol] * percentage
-        print(day.strftime("%Y-%m-%d"), "卖出 {:.1f} 份 {}".format(amount, symbol),"({:.1%} 持仓)".format(percentage), "卖价", price)
+        print(day.strftime("%Y-%m-%d"), "卖出 {:.2f} 份 {}".format(amount, symbol),"({:.1%} 持仓)".format(percentage), "卖价", price)
     
     share_today[symbol] = share[-1][symbol] - amount
     balance_today[symbol] = share_today[symbol] * price
@@ -142,7 +142,7 @@ def Sell(**arg):
     profit = (price - 平均成本[symbol]) * amount 
     confirmed_profit[day] = confirmed_profit.get(day, 0) + profit
     # print('confirmed_profit',day,confirmed_profit[day])
-    #由于都是收盘时操作，所以计算当日盈亏应把卖出的份额也算上
+    # 由于都是收盘时操作，所以计算当日盈亏应把卖出的份额也算上
     profit_today[day] = profit_today.get(day, 0) + price_diff.loc[day, symbol] * share[-1][symbol] 
     # 如果全额卖出，平均成本会变为 0/0，因此对此情况做预先处理
     if share_today[symbol] == 0:
@@ -183,7 +183,7 @@ def Buy(**arg):
     # 累计投入 = 原累计投入 + 新买入份数 * 买入价格
     累计投入[symbol] += amount * price
     
-    print(day.strftime("%Y-%m-%d"), "买入 {:.1f}份 {}, 当前平均成本 {:.2f}".format(amount, symbol, 平均成本[symbol]), end='\r')
+    print(day.strftime("%Y-%m-%d"), "买入 {:.2f}份 {}, 当前平均成本 {:.2f}".format(amount, symbol, 平均成本[symbol]), end='\n')
     return "买入成功"
 def Check_Signal():
     '''
@@ -260,7 +260,7 @@ confirmed_profit = dict_to_df(confirmed_profit, "confirmed_profit").cumsum()
 
 
 average_cost.plot(title="持股平均成本")
-investment.plot(title="投入资金")
+investment.plot(title="Investment")
 plt.show()
 
 print("\n----- 策略回测报告 -----")
