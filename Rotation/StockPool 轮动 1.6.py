@@ -1,9 +1,19 @@
+__doc__ = """
+pyback - an experimental module to perform backtests for Python
+=====================================================================
+
+**Pyback** 
+
+Main Features
+-------------
+Here are something this backtest framework can do:
+
+  - .
+  - 
+  - 
+
 """
-Based on Version 1.5
---------------------
-- 读取数据库价格
-- 采用多级止损
-"""
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,27 +21,44 @@ import talib
 import time
 from data_reader import get_muti_close_day, get_index_day, get_stock_day
 
-STOCK_POOL = ['000016.SH','000905.SH','000009.SH','000991.SH','000935.SH','000036.SH']
-#STOCK_POOL = ['000905.SH', '600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
-#STOCK_POOL = ["000036.SH"]
-START_DATE = "2008-01-01"
-END_DATE = "2018-08-24"
-INITIAL_CAPITAL = 1000
-# CAPITAL = INITIAL_CAPITAL / 3
-DURATION = 10 * 5
-Profit_Ceiling = [0.6, 0.2] #止盈线
-Trailing_Percentage = 0.2 #优先止盈百分比
+class Backtest():
+    '''
+    Wrapper class for a backtest.
+    '''
+    def __init__(self, start_date="2008-01-01", end_date="2018-08-24", *stock_pool, **arg):
+        self.START_DATE = start_date
+        self.END_DATE = end_date
+        self.STOCK_POOL = stock_pool
+        self.STOCK_POOL = ['000016.SH','000905.SH','000009.SH','000991.SH','000935.SH','000036.SH']
+        #STOCK_POOL = ['000905.SH', '600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
+        #STOCK_POOL = ["000036.SH"]
+        initial_capital = arg.pop('initial_capital', None)
+        if initial_capital is None:
+            self.INITIAL_CAPITAL = 1000
+        elif initial_capital <= 0:
+            raise ValueError("Initial capital must be greater than zero.")
+        else:
+            self.INITIAL_CAPITAL = initial_capital
+        
+        self.DURATION = 10 * 5
+        self.Profit_Ceiling = [0.6, 0.2] #止盈线
+        self.Trailing_Percentage = 0.2 #优先止盈百分比
 
-# %% 获取收盘数据
+def _init_data(self):
+    '''
+    Fetch Data
+    ----------
+    获取收盘数据
+    '''
 
-# price = get_muti_close_day(STOCK_POOL,START_DATE,END_DATE)
-# df = get_index_day('600519.SH',START_DATE,END_DATE)
-price = {}
-for symbol in STOCK_POOL:
-    price[symbol] = get_index_day(symbol,START_DATE,END_DATE).sclose
-price = pd.DataFrame(price)
-price.fillna(method="ffill", inplace=True)
-print("Historical Price Loaded!")
+    # price = get_muti_close_day(STOCK_POOL,START_DATE,END_DATE)
+    # df = get_index_day('600519.SH',START_DATE,END_DATE)
+    price = {}
+    for symbol in STOCK_POOL:
+        price[symbol] = get_index_day(symbol,START_DATE,END_DATE).sclose
+    price = pd.DataFrame(price)
+    price.fillna(method="ffill", inplace=True)
+    print("Historical Price Loaded!")
 
 
 # %% 技术指标 
@@ -206,32 +233,33 @@ def Check_Signal():
             
     return BUY_SIGNALS, SELL_SIGNALS
 
-# 按天回测正式开始
-t0 = time.time()
-for day in price.index[DURATION:]:
-    balance_today, share_today = {"date": day}, {"date": day}
-    buy_signals, sell_signals = Check_Signal()
-    # print(buy_signals, sell_signals)
-    for symbol in STOCK_POOL: 
-        for signal in sell_signals[symbol]:
-            Sell(**sell_signals[symbol][signal])
-        for signal in buy_signals[symbol]:
-            Buy(**buy_signals[symbol][signal])
-        if len(buy_signals.get(symbol,{}))==0 and len(sell_signals.get(symbol,{}))==0:
-            record_daily_profit(day, symbol)
-        average_cost.loc[day, symbol] = 平均成本[symbol] if 平均成本[symbol] < 10000 else np.nan
-        investment.loc[day, symbol] = 累计投入[symbol]
-        
-    # 记录当日份数和账户余额
-    share.append(share_today)
-    capital_balance.append(balance_today)
-t1 = time.time()
-tpy = t1 - t0
-print('回测已完成，用时 %5.3f 秒' % tpy)
-# 转换数据类型
-share = pd.DataFrame(share).set_index("date")#.rename(columns={'600519.SH':'shares'})
-#investment = investment.rename(columns={'600519.SH':'资金投入'})
-capital_balance = pd.DataFrame(capital_balance).set_index("date")
+def loop():
+    # 按天回测正式开始
+    t0 = time.time()
+    for day in price.index[DURATION:]:
+        balance_today, share_today = {"date": day}, {"date": day}
+        buy_signals, sell_signals = Check_Signal()
+        # print(buy_signals, sell_signals)
+        for symbol in STOCK_POOL: 
+            for signal in sell_signals[symbol]:
+                Sell(**sell_signals[symbol][signal])
+            for signal in buy_signals[symbol]:
+                Buy(**buy_signals[symbol][signal])
+            if len(buy_signals.get(symbol,{}))==0 and len(sell_signals.get(symbol,{}))==0:
+                record_daily_profit(day, symbol)
+            average_cost.loc[day, symbol] = 平均成本[symbol] if 平均成本[symbol] < 10000 else np.nan
+            investment.loc[day, symbol] = 累计投入[symbol]
+            
+        # 记录当日份数和账户余额
+        share.append(share_today)
+        capital_balance.append(balance_today)
+    t1 = time.time()
+    tpy = t1 - t0
+    print('回测已完成，用时 %5.3f 秒' % tpy)
+    # 转换数据类型
+    share = pd.DataFrame(share).set_index("date")#.rename(columns={'600519.SH':'shares'})
+    #investment = investment.rename(columns={'600519.SH':'资金投入'})
+    capital_balance = pd.DataFrame(capital_balance).set_index("date")
 
 
 def dict_to_df(d: dict, columns_name: str):
@@ -250,12 +278,22 @@ average_cost.plot(title="持股平均成本")
 investment.plot(title="投入资金")
 plt.show()
 
-print("\n----- 策略回测报告 -----")
-print("标的", STOCK_POOL)
-print("投入资金平均值\t￥{:.2f}".format(investment.T.sum().mean()))
-rate_of_return = accumulated_profit.iloc[-1,0]/investment.T.sum().mean()
-print("总收益率\t{:.2%}".format(rate_of_return))
-# print("平均年化收益\t",)
+def summary(write_excel = False):
+    '''
+    Generate backtest report for the given strategy.
+    '''
+    print("\n----- 策略回测报告 -----")
+
+    if write_excel:
+        profit_summary = pd.concat([price,investment,share,average_cost,confirmed_profit, accumulated_profit, profit_today], axis=1)
+        profit_summary.fillna(method="ffill", inplace=True)
+        profit_summary.to_excel("Position History.xlsx")
+
+    print("标的", STOCK_POOL)
+    print("投入资金平均值\t￥{:.2f}".format(investment.T.sum().mean()))
+    rate_of_return = accumulated_profit.iloc[-1,0]/investment.T.sum().mean()
+    print("总收益率\t{:.2%}".format(rate_of_return))
+
 # print(
 #     "已完成交易次数：{}，其中：\n盈利交易{}次，亏损交易{}次;\n胜率{:.2%}".format(
 #         win_count + lose_count,
@@ -267,8 +305,7 @@ print("总收益率\t{:.2%}".format(rate_of_return))
 
 
 # %% 绘制最终收益率曲线
-profit_summary = pd.concat([price,investment,share,average_cost,confirmed_profit, accumulated_profit, profit_today], axis=1)
-profit_summary.fillna(method="ffill", inplace=True)
+
 # 最终版
 
 def generate_profit_curve(ans: pd.DataFrame, column="accumulated_profit"):
@@ -323,4 +360,5 @@ def generate_profit_curve(ans: pd.DataFrame, column="accumulated_profit"):
 
 
 generate_profit_curve(profit_summary)
-plt.show()
+
+if __name__ == '__main__':
