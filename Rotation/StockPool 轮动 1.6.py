@@ -1,8 +1,8 @@
 """
-Based on Version 1.4
+Based on Version 1.5
 --------------------
 - 读取数据库价格
-- 指数/股票均可读取
+- 采用多级止损
 """
 import pandas as pd
 import numpy as np
@@ -11,10 +11,9 @@ import talib
 import time
 from data_reader import get_muti_close_day, get_index_day, get_stock_day
 
-TYPE = 0 # 0 for "index"; 1 for "stock"
 STOCK_POOL = ['000016.SH','000905.SH','000009.SH','000991.SH','000935.SH','000036.SH']
-# STOCK_POOL = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
-# STOCK_POOL = ["600104.SH"]
+#STOCK_POOL = ['000905.SH', '600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
+#STOCK_POOL = ["000036.SH"]
 START_DATE = "2008-01-01"
 END_DATE = "2018-08-24"
 INITIAL_CAPITAL = 1000
@@ -24,14 +23,13 @@ Profit_Ceiling = [0.6, 0.2] #止盈线
 Trailing_Percentage = 0.2 #优先止盈百分比
 
 # %% 获取收盘数据
-if TYPE==1:
-    price = get_muti_close_day(STOCK_POOL,START_DATE,END_DATE)
+
+# price = get_muti_close_day(STOCK_POOL,START_DATE,END_DATE)
 # df = get_index_day('600519.SH',START_DATE,END_DATE)
-elif TYPE==0:
-    price = {}
-    for symbol in STOCK_POOL:
-        price[symbol] = get_index_day(symbol,START_DATE,END_DATE).sclose
-    price = pd.DataFrame(price)
+price = {}
+for symbol in STOCK_POOL:
+    price[symbol] = get_index_day(symbol,START_DATE,END_DATE).sclose
+price = pd.DataFrame(price)
 price.fillna(method="ffill", inplace=True)
 print("Historical Price Loaded!")
 
@@ -48,7 +46,7 @@ mu = (price / price.shift(DURATION)).apply(np.log) + 0.5 * np.sqrt(sigma)
 
 # %% 策略部分 分配仓位
 # 买入时机
-is_entry_time = np.square(sigma * 1) - mu > 0
+is_entry_time = np.square(sigma * 1) - mu > -0.3
 percent_chg = (price / price.shift(int(DURATION/2))) - 1
 
 # 赋权重(仓位)
@@ -82,16 +80,15 @@ pos = pos.reindex(index=price.index).fillna(0)
 """
 # 添加首行（全为0）
 first = {}
-平均成本, 累计投入, 投入 = {}, {}, {}
+平均成本, 累计投入 = {}, {}
 for symbol in STOCK_POOL:
     first[symbol] = 0
     平均成本[symbol] = 10000
     累计投入[symbol] = 0
-    投入[symbol] = 0
 capital_balance, share = [first], [first]
 
 confirmed_profit, profit_today = {}, {} # 卖出后 已确认收益；继续持仓 浮动盈亏
-average_cost, investment, accumulated_investment = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+average_cost, investment = pd.DataFrame(), pd.DataFrame()
 win_count, lose_count = 0, 0
 
 def record_daily_profit(day, symbol):
@@ -111,7 +108,6 @@ def Sell(**arg):
     传入参数：
     symbol, amount 或 percentage, price
     '''
-    global 收回现金
     price = arg.pop('price', None)
     symbol = arg.pop('symbol', None)
     percentage = arg.pop('percentage', None)
@@ -139,9 +135,7 @@ def Sell(**arg):
         平均成本[symbol] = 10000
     else:
         平均成本[symbol] = (平均成本[symbol] * share[-1][symbol] - amount * price)/ share_today[symbol]
-    投入[symbol] *= (1-percentage)
-    收回现金 += amount * price
-    print("收回现金", 收回现金)
+    累计投入[symbol] *= (1-percentage)
     return "卖出成功"
 
 def Buy(**arg):
@@ -173,7 +167,6 @@ def Buy(**arg):
     平均成本[symbol] = (平均成本[symbol] * share[-1][symbol] + amount * price) / share_today[symbol]
     
     # 累计投入 = 原累计投入 + 新买入份数 * 买入价格
-    投入[symbol] += amount * price
     累计投入[symbol] += amount * price
     
     print(day.strftime("%Y-%m-%d"), "买入 {:.1f}份 {}, 当前平均成本 {:.2f}".format(amount, symbol, 平均成本[symbol]), end='\r')
@@ -215,7 +208,6 @@ def Check_Signal():
 
 # 按天回测正式开始
 t0 = time.time()
-收回现金 = 0
 for day in price.index[DURATION:]:
     balance_today, share_today = {"date": day}, {"date": day}
     buy_signals, sell_signals = Check_Signal()
@@ -228,14 +220,14 @@ for day in price.index[DURATION:]:
         if len(buy_signals.get(symbol,{}))==0 and len(sell_signals.get(symbol,{}))==0:
             record_daily_profit(day, symbol)
         average_cost.loc[day, symbol] = 平均成本[symbol] if 平均成本[symbol] < 10000 else np.nan
-        investment.loc[day, symbol] = 投入[symbol]
-        accumulated_investment.loc[day, symbol] = 累计投入[symbol]
+        investment.loc[day, symbol] = 累计投入[symbol]
+        
     # 记录当日份数和账户余额
     share.append(share_today)
     capital_balance.append(balance_today)
 t1 = time.time()
 tpy = t1 - t0
-print('\n回测已完成，用时 %5.3f 秒' % tpy)
+print('回测已完成，用时 %5.3f 秒' % tpy)
 # 转换数据类型
 share = pd.DataFrame(share).set_index("date")#.rename(columns={'600519.SH':'shares'})
 #investment = investment.rename(columns={'600519.SH':'资金投入'})
@@ -256,16 +248,13 @@ confirmed_profit = dict_to_df(confirmed_profit, "confirmed_profit").cumsum()
 #average_cost = average_cost.rename(columns={'600519.SH':"average_cost"})
 average_cost.plot(title="持股平均成本")
 investment.plot(title="投入资金")
+plt.show()
 
 print("\n----- 策略回测报告 -----")
 print("标的", STOCK_POOL)
-print("累计投入\t{:.2f}".format(accumulated_investment.iloc[-1].sum())) # investment.T.sum().max()
-print("当前持仓总市值\t{:.2f}".format(capital_balance.iloc[-1].sum()+收回现金))#confirmed_profit.iloc[-1,0]
 print("投入资金平均值\t￥{:.2f}".format(investment.T.sum().mean()))
 rate_of_return = accumulated_profit.iloc[-1,0]/investment.T.sum().mean()
 print("总收益率\t{:.2%}".format(rate_of_return))
-print("止盈参数\t{:.2%}".format(Profit_Ceiling[0]))
-print("{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}".format(accumulated_investment.iloc[-1].sum(),capital_balance.iloc[-1].sum()+收回现金,investment.T.sum().mean(),rate_of_return))
 # print("平均年化收益\t",)
 # print(
 #     "已完成交易次数：{}，其中：\n盈利交易{}次，亏损交易{}次;\n胜率{:.2%}".format(
