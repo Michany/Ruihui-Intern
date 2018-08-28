@@ -11,16 +11,16 @@ import talib
 import time
 from data_reader import get_muti_close_day, get_index_day, get_stock_day
 
-TYPE = 0 # 0 for "index"; 1 for "stock"
-STOCK_POOL = ['000016.SH','000905.SH','000009.SH','000991.SH','000935.SH','000036.SH']
-# STOCK_POOL = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
+TYPE = 1 # 0 for "index"; 1 for "stock"
+#STOCK_POOL = ['000016.SH','000905.SH','000009.SH','000991.SH','000935.SH','000036.SH']
+STOCK_POOL = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH','601888.SH']
 # STOCK_POOL = ["600104.SH"]
 START_DATE = "2008-01-01"
-END_DATE = "2018-08-24"
+END_DATE = "2018-08-28"
 INITIAL_CAPITAL = 1000
 # CAPITAL = INITIAL_CAPITAL / 3
 DURATION = 10 * 5
-Profit_Ceiling = [0.6, 0.2] #止盈线
+Profit_Ceiling = [0.4, 0.2] #止盈线
 Trailing_Percentage = 0.2 #优先止盈百分比
 
 # %% 获取收盘数据
@@ -48,7 +48,7 @@ mu = (price / price.shift(DURATION)).apply(np.log) + 0.5 * np.sqrt(sigma)
 
 # %% 策略部分 分配仓位
 # 买入时机
-is_entry_time = np.square(sigma * 1) - mu > 0
+is_entry_time = np.square(sigma * 1) - mu > -0.3
 percent_chg = (price / price.shift(int(DURATION/2))) - 1
 
 # 赋权重(仓位)
@@ -141,7 +141,7 @@ def Sell(**arg):
         平均成本[symbol] = (平均成本[symbol] * share[-1][symbol] - amount * price)/ share_today[symbol]
     投入[symbol] *= (1-percentage)
     收回现金 += amount * price
-    print("收回现金", 收回现金)
+    #print("收回现金", 收回现金)
     return "卖出成功"
 
 def Buy(**arg):
