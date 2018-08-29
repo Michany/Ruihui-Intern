@@ -79,11 +79,19 @@ class Backtest:
         if isinstance(price_DataFrame, pd.DataFrame):
             self._price = price_DataFrame
             self.technical_indicators() #给price赋值时，重新计算技术指标
-            self.timing()
+            self.pos = self.timing()
         else:
             raise ValueError("Unable to handle the inputted price data of type {}, must be <pd.DataFrame>.".format(type(price_DataFrame)))
+    @property
+    def pos(self):
+        return self._pos
+    @pos.setter
+    def pos(self, pos_DataFrame):
+        if isinstance(pos_DataFrame, pd.DataFrame):
+            self._pos = pos_DataFrame
+        else:
+            raise ValueError("Unable to handle the inputted position data of type {}, must be <pd.DataFrame>.".format(type(pos_DataFrame)))            
     
-
     # %% 技术指标
     def technical_indicators(self):
         self._price.fillna(value=0, inplace=True)  # 把早年暂未上市的股票价格填充为0
@@ -194,7 +202,7 @@ class Backtest:
             confirmed_profit[day] = confirmed_profit.get(day, 0) + profit
             # print('confirmed_profit',day,confirmed_profit[day])
             # 由于都是收盘时操作，所以计算当日盈亏应把卖出的份额也算上
-            profit_today[day] = (profit_today.get(day, 0) + self._price_diff.loc[day, symbol] * share[-1][symbol])
+            profit_today[day] = (profit_today.get(day, 0) + self._price_diff.loc[day, symbol] * self.share[-1][symbol])
             # 如果全额卖出，平均成本会变为 0/0，因此对此情况做预先处理
             if share_today[symbol] == 0:
                 self.平均成本[symbol] = 10000
@@ -239,12 +247,12 @@ class Backtest:
 
             print(
                 day.strftime("%Y-%m-%d"),
-                "买入 {:.1f}份 {}, 当前平均成本 {:.2f}".format(amount, symbol, 平均成本[symbol]),
+                "买入 {:.1f}份 {}, 当前平均成本 {:.2f}".format(amount, symbol, self.平均成本[symbol]),
                 end="\r",
             )
             return "买入成功"
 
-        def Check_Signal():
+        def Check_Signal(price_today):
             """
             检查交易信号  
             ----------
@@ -265,34 +273,34 @@ class Backtest:
                 SELL_SIGNALS[symbol] = {}
                 BUY_SIGNALS[symbol] = {}
                 if (
-                    price.loc[day, symbol] > 平均成本[symbol] * (1 + Profit_Ceiling[0])
-                    and share[-1][symbol] > 0
+                    price_today[symbol] > self.平均成本[symbol] * (1 + self.Profit_Ceiling[0])
+                    and self.share[-1][symbol] > 0
                 ):
                     SELL_SIGNALS[symbol]["全部止盈"] = {
                         "symbol": symbol,
                         "percentage": 1,
-                        "price": price.loc[day, symbol],
+                        "price": price_today[symbol],
                     }
                 elif (
-                    price.loc[day, symbol] > 平均成本[symbol] * (1 + Profit_Ceiling[1])
-                    and share[-1][symbol] > 500
+                    price_today[symbol] > self.平均成本[symbol] * (1 + self.Profit_Ceiling[1])
+                    and self.share[-1][symbol] > 500
                 ):
                     SELL_SIGNALS[symbol]["部分止盈"] = {
                         "symbol": symbol,
-                        "percentage": Trailing_Percentage,
-                        "price": price.loc[day, symbol],
+                        "percentage": self.Trailing_Percentage,
+                        "price": price_today[symbol],
                     }
-                elif pos.loc[day, symbol] > 0:
+                elif self.pos.loc[day, symbol] > 0:
                     BUY_SIGNALS[symbol]["定投买入"] = {
                         "symbol": symbol,
-                        "amount": pos.loc[day, symbol],
-                        "price": price.loc[day, symbol],
+                        "amount": self.pos.loc[day, symbol],
+                        "price": price_today[symbol],
                     }
-                    total_share_required += pos.loc[day, symbol]
+                    total_share_required += self.pos.loc[day, symbol]
             for symbol in self.STOCK_POOL:
                 try:
                     BUY_SIGNALS[symbol]["定投买入"]["amount"] *= (
-                        INITIAL_CAPITAL / total_share_required / price.loc[day, symbol]
+                        self.INITIAL_CAPITAL / total_share_required / price_today[symbol]
                     )
                 except:
                     pass
@@ -304,7 +312,7 @@ class Backtest:
         t0 = time.time()
         for day in self.price.index[self.DURATION:]:
             balance_today, share_today = {"date": day}, {"date": day}
-            buy_signals, sell_signals = Check_Signal()
+            buy_signals, sell_signals = Check_Signal(self.price.loc[day])
             # print(buy_signals, sell_signals)
             for symbol in self.STOCK_POOL:
                 for signal in sell_signals[symbol]:
@@ -374,7 +382,8 @@ class Backtest:
         rate_of_return = self.accumulated_profit.iloc[-1, 0] / self.investment.T.sum().mean()
         print("总收益率\t{:.2%}".format(rate_of_return))
         return profit_summary
-    # %% 绘制最终收益率曲线
+
+    @classmethod
     def generate_profit_curve(self, ans: pd.DataFrame, column="accumulated_profit"):
         import matplotlib.pyplot as plt
 
@@ -428,9 +437,9 @@ class Backtest:
         bx.legend(fontsize=15)
         plt.grid()
 
-    generate_profit_curve(profit_summary)
 
 
 if __name__ == "__main__":
     test = Backtest()
-    test.technical_indicators()
+    test.loop()
+    Backtest.generate_profit_curve(test.summary())
