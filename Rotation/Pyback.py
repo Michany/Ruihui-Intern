@@ -144,7 +144,7 @@ class Backtest:
         - investment          累计投入
 
         """
-
+        global profit_today, share_today, balance_today
         def _init_loop():
             # 添加首行（全为0）
             first = {}
@@ -165,9 +165,9 @@ class Backtest:
             ----------
             用于没有交易产生时
             """
-            self.share_today[symbol] = self.share[-1][symbol]
-            self.balance_today[symbol] = self.share[-1][symbol] * self.price.loc[day, symbol]
-            self.profit_today[day] = (self.profit_today.get(day, 0) + self._price_diff.loc[day, symbol] * self.share[-1][symbol])
+            share_today[symbol] = self.share[-1][symbol]
+            balance_today[symbol] = self.share[-1][symbol] * self.price.loc[day, symbol]
+            profit_today[day] = (profit_today.get(day, 0) + self._price_diff.loc[day, symbol] * self.share[-1][symbol])
 
         def Sell(**arg):
             """

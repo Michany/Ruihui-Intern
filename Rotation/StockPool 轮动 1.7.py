@@ -3,6 +3,9 @@ Based on Version 1.4
 --------------------
 - 读取数据库价格
 - 指数/股票均可读取
+- 盈利再投资
+- 分级止盈赎回
+
 """
 import pandas as pd
 import numpy as np
@@ -159,6 +162,8 @@ def Buy(**arg):
         amount = arg.pop('amount', None)
         if amount is None:
             raise ValueError("Please specify at least one argument, either \"amount\" or \"percentage\".")
+        else:
+            percentage = amount / share[-1][symbol]
     else:
         amount = share[-1][symbol] * percentage
     share_today[symbol] = share[-1][symbol] + amount
@@ -206,7 +211,6 @@ def Check_Signal():
     for symbol in STOCK_POOL:
         try:
             BUY_SIGNALS[symbol]["定投买入"]['amount'] *= INITIAL_CAPITAL/total_share_required / price.loc[day, symbol]
-            if BUY_SIGNALS[symbol]["定投买入"]['amount']<=0:BUY_SIGNALS[symbol]["定投买入"]['amount']=0.01
         except:
             pass
             

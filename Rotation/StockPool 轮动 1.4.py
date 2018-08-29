@@ -11,39 +11,40 @@ import time
 
 # STOCK_POOL = ['600000.SH', '600015.SH', '600029.SH', '600039.SZ', '600059.SZ', '600085.SH', '600132.SH']
 STOCK_POOL = ['600048.SH', '600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
-# STOCK_POOL = ["000651.SH"]
+#STOCK_POOL = ["000538.SZ"]
 START_DATE = "2008-01-01"
 END_DATE = "2018-08-16"
 INITIAL_CAPITAL = 1000
 # CAPITAL = INITIAL_CAPITAL / 3
 DURATION = 10 * 5
-Profit_Ceiling = [0.3, 0.2] #止盈线
+Profit_Ceiling = [0.4, 0.2] #止盈线
 Trailing_Percentage = 0.2 #优先止盈百分比
 
 # %% 获取收盘数据
-t1 = pd.read_excel(
-    r"C:\Users\meiconte\Documents\RH\Historical Data\TRD_Dalyr_08-12.xlsx",
-    dtype={"date": "datetime64", "code": str},
-)
-t2 = pd.read_excel(
-    r"C:\Users\meiconte\Documents\RH\Historical Data\TRD_Dalyr_13-18.xlsx",
-    dtype={"date": "datetime64", "code": str},
-)
-t3 = pd.read_excel(
-    r"C:\Users\meiconte\Documents\RH\Historical Data\TRD_Dalyr_18.xlsx",
-    dtype={"date": "datetime64", "code": str},
-)
-t1.drop(columns=["open", "high", "low"], inplace=True)
-t = t1.append(t2).append(t3)
+# t1 = pd.read_excel(
+#     r"C:\Users\meiconte\Documents\RH\Historical Data\TRD_Dalyr_08-12.xlsx",
+#     dtype={"date": "datetime64", "code": str},
+# )
+# t2 = pd.read_excel(
+#     r"C:\Users\meiconte\Documents\RH\Historical Data\TRD_Dalyr_13-18.xlsx",
+#     dtype={"date": "datetime64", "code": str},
+# )
+# t3 = pd.read_excel(
+#     r"C:\Users\meiconte\Documents\RH\Historical Data\TRD_Dalyr_18.xlsx",
+#     dtype={"date": "datetime64", "code": str},
+# )
+# t1.drop(columns=["open", "high", "low"], inplace=True)
+# t = t1.append(t2).append(t3)
 # t = pd.read_excel(r"C:\Users\meiconte\Documents\RH\Historical Data\test.xlsx",dtype={'date': 'datetime64', 'code': str})
-t.set_index("date", inplace=True)
+t = pd.read_excel(r"C:\Users\meiconte\Documents\RH\Historical Data\股价.xlsx",dtype={'Date': 'datetime64'})
+price = t.set_index("Date")
 
-tgroups = t.groupby("code")
-price = {}
-for symbol in STOCK_POOL:
-    code = symbol[:-3]
-    price[symbol] = tgroups.get_group(code).close
-price = pd.DataFrame(price)
+# tgroups = t.groupby("code")
+# price = {}
+# for symbol in STOCK_POOL:
+#     code = symbol[:-3]
+#     price[symbol] = tgroups.get_group(code).close
+# price = pd.DataFrame(price)
 price.fillna(method="ffill", inplace=True)
 print("Historical Price Loaded!")
 
@@ -94,15 +95,16 @@ pos = pos.reindex(index=price.index).fillna(0)
 """
 # 添加首行（全为0）
 first = {}
-平均成本, 累计投入 = {}, {}
+平均成本, 累计投入, 投入 = {}, {}, {}
 for symbol in STOCK_POOL:
     first[symbol] = 0
     平均成本[symbol] = 10000
     累计投入[symbol] = 0
+    投入[symbol] = 0
 capital_balance, share = [first], [first]
 
 confirmed_profit, profit_today = {}, {} # 卖出后 已确认收益；继续持仓 浮动盈亏
-average_cost, investment = pd.DataFrame(), pd.DataFrame()
+average_cost, investment, accumulated_investment = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 win_count, lose_count = 0, 0
 
 def record_daily_profit(day, symbol):
@@ -122,6 +124,7 @@ def Sell(**arg):
     传入参数：
     symbol, amount 或 percentage, price
     '''
+    global 收回现金
     price = arg.pop('price', None)
     symbol = arg.pop('symbol', None)
     percentage = arg.pop('percentage', None)
@@ -142,15 +145,18 @@ def Sell(**arg):
     profit = (price - 平均成本[symbol]) * amount 
     confirmed_profit[day] = confirmed_profit.get(day, 0) + profit
     # print('confirmed_profit',day,confirmed_profit[day])
-    # 由于都是收盘时操作，所以计算当日盈亏应把卖出的份额也算上
+    #由于都是收盘时操作，所以计算当日盈亏应把卖出的份额也算上
     profit_today[day] = profit_today.get(day, 0) + price_diff.loc[day, symbol] * share[-1][symbol] 
     # 如果全额卖出，平均成本会变为 0/0，因此对此情况做预先处理
     if share_today[symbol] == 0:
         平均成本[symbol] = 10000
     else:
         平均成本[symbol] = (平均成本[symbol] * share[-1][symbol] - amount * price)/ share_today[symbol]
-    累计投入[symbol] *= (1-percentage)
+    投入[symbol] *= (1-percentage)
+    收回现金 += amount * price
+    #print("收回现金", 收回现金)
     return "卖出成功"
+
 
 def Buy(**arg):
     '''
@@ -181,6 +187,7 @@ def Buy(**arg):
     平均成本[symbol] = (平均成本[symbol] * share[-1][symbol] + amount * price) / share_today[symbol]
     
     # 累计投入 = 原累计投入 + 新买入份数 * 买入价格
+    投入[symbol] += amount * price
     累计投入[symbol] += amount * price
     
     print(day.strftime("%Y-%m-%d"), "买入 {:.2f}份 {}, 当前平均成本 {:.2f}".format(amount, symbol, 平均成本[symbol]), end='\n')
@@ -222,6 +229,7 @@ def Check_Signal():
 
 # 按天回测正式开始
 t0 = time.time()
+收回现金 = 0
 for day in price.index[DURATION:]:
     balance_today, share_today = {"date": day}, {"date": day}
     buy_signals, sell_signals = Check_Signal()
@@ -234,16 +242,17 @@ for day in price.index[DURATION:]:
         if len(buy_signals.get(symbol,{}))==0 and len(sell_signals.get(symbol,{}))==0:
             record_daily_profit(day, symbol)
         average_cost.loc[day, symbol] = 平均成本[symbol] if 平均成本[symbol] < 10000 else np.nan
-        investment.loc[day, symbol] = 累计投入[symbol]
-        
+        investment.loc[day, symbol] = 投入[symbol]
+        accumulated_investment.loc[day, symbol] = 累计投入[symbol]
     # 记录当日份数和账户余额
     share.append(share_today)
     capital_balance.append(balance_today)
 t1 = time.time()
 tpy = t1 - t0
-print('回测已完成，用时 %5.3f 秒' % tpy)
+print('\n回测已完成，用时 %5.3f 秒' % tpy)
 # 转换数据类型
-share = pd.DataFrame(share).set_index("date")
+share = pd.DataFrame(share).set_index("date")#.rename(columns={'600519.SH':'shares'})
+#investment = investment.rename(columns={'600519.SH':'资金投入'})
 capital_balance = pd.DataFrame(capital_balance).set_index("date")
 
 
@@ -258,15 +267,19 @@ confirmed_profit = dict_to_df(confirmed_profit, "confirmed_profit").cumsum()
 #average_cost = dict_to_df(average_cost, "average_cost")
 #investment = dict_to_df(investment, "investment")
 
-
+#average_cost = average_cost.rename(columns={'600519.SH':"average_cost"})
 average_cost.plot(title="持股平均成本")
-investment.plot(title="Investment")
-plt.show()
+investment.plot(title="投入资金")
 
 print("\n----- 策略回测报告 -----")
+print("标的", STOCK_POOL)
+print("累计投入\t{:.2f}".format(accumulated_investment.iloc[-1].sum())) # investment.T.sum().max()
+print("当前持仓总市值\t{:.2f}".format(capital_balance.iloc[-1].sum()+收回现金))#confirmed_profit.iloc[-1,0]
 print("投入资金平均值\t￥{:.2f}".format(investment.T.sum().mean()))
-rate_of_return = accumulated_profit.iloc[-1,0]/investment.T.sum().mean()-1
+rate_of_return = accumulated_profit.iloc[-1,0]/investment.T.sum().mean()
 print("总收益率\t{:.2%}".format(rate_of_return))
+print("止盈参数\t{:.2%}".format(Profit_Ceiling[0]))
+print("{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}".format(accumulated_investment.iloc[-1].sum(),capital_balance.iloc[-1].sum()+收回现金,investment.T.sum().mean(),rate_of_return))
 # print("平均年化收益\t",)
 # print(
 #     "已完成交易次数：{}，其中：\n盈利交易{}次，亏损交易{}次;\n胜率{:.2%}".format(
@@ -279,10 +292,9 @@ print("总收益率\t{:.2%}".format(rate_of_return))
 
 
 # %% 绘制最终收益率曲线
-profit_summary = pd.concat([confirmed_profit, accumulated_profit, profit_today], axis=1)
+profit_summary = pd.concat([price,investment,share,average_cost,confirmed_profit, accumulated_profit, profit_today], axis=1)
 profit_summary.fillna(method="ffill", inplace=True)
 # 最终版
-
 def generate_profit_curve(ans: pd.DataFrame, column="accumulated_profit"):
     import matplotlib.pyplot as plt
 
