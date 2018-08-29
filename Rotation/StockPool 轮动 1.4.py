@@ -16,7 +16,7 @@ START_DATE = "2008-01-01"
 END_DATE = "2018-08-16"
 INITIAL_CAPITAL = 1000
 # CAPITAL = INITIAL_CAPITAL / 3
-DURATION = 10 * 5
+DURATION = 250
 Profit_Ceiling = [0.4, 0.2] #止盈线
 Trailing_Percentage = 0.2 #优先止盈百分比
 
