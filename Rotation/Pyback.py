@@ -25,11 +25,17 @@ from data_reader import get_muti_close_day, get_index_day, get_stock_day
 
 class Backtest:
     """
-    Wrapper class for a backtest.
+    ## Backtest
+    Core class for a backtest.
+    -------------------------
+
+    >>> test1 = Backtest(stock_pool,start_date="2008-01-01", end_date="2018-08-24")
+    >>> test1.StopLoss = 1
+    >>> test.loop()
     """
 
-    def __init__(self, stock_pool, start_date="2008-01-01", end_date="2018-08-24", 
-                 **arg):
+    def __init__(self, stock_pool, 
+                 start_date="2008-01-01", end_date="2018-08-24", **arg):
         self.START_DATE = start_date
         self.END_DATE = end_date
         self.STOCK_POOL = stock_pool
@@ -42,6 +48,7 @@ class Backtest:
         else:
             self.INITIAL_CAPITAL = initial_capital
 
+        # 加载数据
         TYPE = arg.pop("type", None)
         if TYPE == 1 or TYPE == "stock":
             self.TYPE = 1
@@ -49,11 +56,15 @@ class Backtest:
             self.TYPE = 0
         else:
             raise ValueError("Type not recognized.")
+        self._init_data(type=self.TYPE)
 
+        # 设置止损止盈
         self.DURATION = arg.pop("duration", 250)
         self.Profit_Ceiling = arg.pop("profit_ceiling", [0.4, 0.2])  # 止盈线
         self.Trailing_Percentage = arg.pop("trailing_percentage", [1, 0.2])    # 优先止盈百分比
+        self.StopLoss = arg.pop("stoploss", 1)
 
+        
     def _init_data(self, type):
         """
         Fetch Data
@@ -61,19 +72,18 @@ class Backtest:
         获取收盘数据
         
         Type 0 for "index"; 1 for "stock"
+
         """
-        # price = get_muti_close_day(STOCK_POOL,START_DATE,END_DATE)
-        # df = get_index_day('600519.SH',START_DATE,END_DATE)
+        print("Fetching Historical Data...")
         if type == 1:
             price = get_muti_close_day(self.STOCK_POOL, self.START_DATE, self.END_DATE)
-        # df = get_index_day('600519.SH',START_DATE,END_DATE)
         elif type == 0:
             price = {}
             for symbol in self.STOCK_POOL:
                 price[symbol] = get_index_day(symbol, self.START_DATE, self.END_DATE).sclose
             price = pd.DataFrame(price)
         price.fillna(method="ffill", inplace=True)
-        print("Historical Price Loaded!")
+        print("Historical Data Loaded!")
         
         self.price = price
         del price
@@ -181,7 +191,7 @@ class Backtest:
         - investment          累计投入
 
         """
-        def _init_loop():
+        def init_loop():
             # 添加首行（全为0）
             first = {}
             self.平均成本, self.累计投入, self.投入 = {}, {}, {}
@@ -337,8 +347,7 @@ class Backtest:
             if buybuybuy:self.cash_balance -= self.盈利再投资
             return BUY_SIGNALS, SELL_SIGNALS
 
-        self._init_data(type=self.TYPE)
-        _init_loop()
+        init_loop()
         # 按天回测正式开始
         t0 = time.time()
         self.cash_balance = 0
@@ -366,13 +375,10 @@ class Backtest:
         def convert_types():
             # 转换数据类型
             self.share = pd.DataFrame(self.share).set_index("date")
-            # investment = investment.rename(columns={'600519.SH':'资金投入'})
             self.capital_balance = pd.DataFrame(self.capital_balance).set_index("date")
 
             def dict_to_df(d: dict, columns_name: str):
-                return pd.DataFrame(
-                    list(d.values()), index=d.keys(), columns=[columns_name]
-                )
+                return pd.DataFrame(list(d.values()), index=d.keys(), columns=[columns_name])
 
             self.profit_today = dict_to_df(self.profit_today, "profit_today")
             self.accumulated_profit = self.profit_today.cumsum().rename(
@@ -420,28 +426,27 @@ class Backtest:
         return profit_summary
 
     @classmethod
-    def generate_profit_curve(self, ans: pd.DataFrame, column="accumulated_profit"):
+    def generate_profit_curve(self, data: pd.DataFrame, column="accumulated_profit"):
         import matplotlib.pyplot as plt
+        plt.rcParams["font.sans-serif"] = ["SimHei"]
+        plt.rcParams["axes.unicode_minus"] = False
 
         print("正在生成图像...")
         fig = plt.figure()
         fig.set_size_inches(12, 12)
-        ans["NAV"] = ans[column]
-        ans["Daily_pnl"] = ans[column].diff()
+        ans = pd.DataFrame(index=data.index)
+        ans["NAV"] = data[column]
+        ans["Daily_pnl"] = data[column].diff()
 
         ax = fig.add_subplot(211)
         ax.plot(ans.index, ans["NAV"], linewidth=2, label="累计收益")
         ax.plot(ans.index, ans["confirmed_profit"], linewidth=2, label="确认收益")
+        # 最大回撤标注
         ax.fill_between(
             ans.index, ans["NAV"], y2=1,
             where=(ans["NAV"] < ans["NAV"].shift(1))
-            | ((ans["NAV"] > ans["NAV"].shift(-1)) & (ans["NAV"] >= ans["NAV"].shift(1))
-            ),
-            facecolor="grey", alpha=0.3,
-        )
-        # 最大回撤标注
-        plt.rcParams["font.sans-serif"] = ["SimHei"]
-        plt.rcParams["axes.unicode_minus"] = False
+            | ((ans["NAV"] > ans["NAV"].shift(-1)) & (ans["NAV"] >= ans["NAV"].shift(1))),
+            facecolor="grey", alpha=0.3,)
         ax.legend(fontsize=15)
         plt.grid()
 
