@@ -220,6 +220,8 @@ class Backtest:
             self.ProfitTrailing_Already = pd.DataFrame(index=self.Profit_Ceiling,columns=self.STOCK_POOL)
             self.ProfitTrailing_Already.fillna(False, inplace=True)
 
+            self.cash_balance = 0
+
         def record_daily_profit(day, symbol):
             """
             记录当日盈亏
@@ -246,11 +248,12 @@ class Backtest:
                     raise ValueError('Please specify at least one argument, either "amount" or "percentage".')
                 else:
                     percentage = amount / self.share[-1][symbol]
-                    print("卖出 {:.1f} 份 {}".format(amount, symbol), day.strftime("%Y-%m-%d"),)
             else:
                 amount = self.share[-1][symbol] * percentage
-                print(day.strftime("%Y-%m-%d"), "卖出 {:.2f} 份 {}".format(amount, symbol),
-                    "({:.1%} 持仓)".format(percentage), "卖价", price)
+            if mute: end='\r'
+            else: end='\n'
+            print(day.strftime("%Y-%m-%d"), "卖出 {:.2f} 份 {}".format(amount, symbol),
+                "({:.1%} 持仓)".format(percentage), "卖价", price, end=end)
 
             self.share_today[symbol] = self.share[-1][symbol] - amount
             self.balance_today[symbol] = self.share_today[symbol] * price
@@ -347,8 +350,8 @@ class Backtest:
                         break
                 #止损
 
-                #买入
-                if len(SELL_SIGNALS) != 0:
+                #买入（仅在没有卖出信号下买入）
+                if len(SELL_SIGNALS[symbol]) == 0:
                     if self.pos.loc[day, symbol] > 0:
                         BUY_SIGNALS[symbol]["定投买入"] = {
                             "symbol": symbol,
@@ -356,6 +359,7 @@ class Backtest:
                             "price": price_today[symbol],
                         }
                         total_share_required += self.pos.loc[day, symbol]
+            # 将买入的总金额调整至每期固定投入 INITIAL_CAPITAL
             for symbol in self.STOCK_POOL:
                 try:
                     BUY_SIGNALS[symbol]["定投买入"]["amount"] *= (
@@ -364,10 +368,9 @@ class Backtest:
                     pass
             return BUY_SIGNALS, SELL_SIGNALS
 
-        init_loop()
         # 按天回测正式开始
+        init_loop()
         t0 = time.time()
-        self.cash_balance = 0
         for day in self.price.index[self.DURATION:]:
             self.balance_today, self.share_today = {"date": day}, {"date": day}
             buy_signals, sell_signals = Check_Signal(self.price.loc[day])
