@@ -11,9 +11,9 @@ import talib
 import time
 from data_reader import get_muti_close_day, get_index_day, get_stock_day
 
-TYPE = 1 # 0 for "index"; 1 for "stock"
-#STOCK_POOL = ['000016.SH','000905.SH','000009.SH','000991.SH','000935.SH','000036.SH']
-STOCK_POOL = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH','601888.SH']
+TYPE = 0 # 0 for "index"; 1 for "stock"
+STOCK_POOL = ['000016.SH','000905.SH','000009.SH','000991.SH','000935.SH','000036.SH']
+# STOCK_POOL = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH','601888.SH']
 # STOCK_POOL = ["600104.SH"]
 START_DATE = "2008-01-01"
 END_DATE = "2018-08-28"

@@ -1,5 +1,5 @@
 __doc__ = """
-pyback - an experimental module to perform backtests for Python
+Pyback - an experimental module to perform backtests for Python
 =====================================================================
 
 Main Features
@@ -10,8 +10,11 @@ Here are something this backtest framework can do:
   也可读取给定的价格DataFrame，并计算刷新各个技术指标；
   指数/股票均可读取
 - TODO 盈利再投资
+  盈利再投资会导致在相对高位投更多的钱
 - 分级止盈赎回，可以分任意多个等级
+  实际效果来看，分级不如全都赎回更好
 
+Updated in 2018/8/30
 """
 
 import pandas as pd
@@ -48,6 +51,12 @@ class Backtest:
         else:
             self.INITIAL_CAPITAL = initial_capital
 
+        # 设置止损止盈
+        self.DURATION = arg.pop("duration", 250) # 设置duration必须放在设置price之前
+        self.Profit_Ceiling = arg.pop("profit_ceiling", [0.4, 0.2])  # 止盈线
+        self.Trailing_Percentage = arg.pop("trailing_percentage", [1, 0.2])    # 优先止盈百分比
+        self.StopLoss = arg.pop("stoploss", 1)
+
         # 加载数据
         TYPE = arg.pop("type", None)
         if TYPE == 1 or TYPE == "stock":
@@ -56,16 +65,9 @@ class Backtest:
             self.TYPE = 0
         else:
             raise ValueError("Type not recognized.")
-        self._init_data(type=self.TYPE)
+        self.init_data(type=self.TYPE)
 
-        # 设置止损止盈
-        self.DURATION = arg.pop("duration", 250)
-        self.Profit_Ceiling = arg.pop("profit_ceiling", [0.4, 0.2])  # 止盈线
-        self.Trailing_Percentage = arg.pop("trailing_percentage", [1, 0.2])    # 优先止盈百分比
-        self.StopLoss = arg.pop("stoploss", 1)
-
-        
-    def _init_data(self, type):
+    def init_data(self, type):
         """
         Fetch Data
         ----------
@@ -137,6 +139,15 @@ class Backtest:
             self._pos = pos_DataFrame
         else:
             raise ValueError("Unable to handle the inputted position data of type {}, must be <pd.DataFrame>.".format(type(pos_DataFrame)))            
+    
+    @property
+    def info(self):
+        print('-'*5, 'Backtest Info', '-'*5)
+        print(("Pool:\n"+'{} '*len(self.STOCK_POOL)).format(*self.STOCK_POOL))
+        print("Duration\t{}".format(self.DURATION))
+        print(("Profit_Ceiling\t"+"{:.0%}\t"*len(self.Profit_Ceiling)).format(*self.Profit_Ceiling))
+        print(("Trailing_Pct\t"+"{:.0%}\t"*len(self.Trailing_Percentage)).format(*self.Trailing_Percentage))
+
 
     # %% 技术指标
     def technical_indicators(self):
@@ -171,7 +182,7 @@ class Backtest:
         print("Timing calculated")
         return pos
 
-    def loop(self):
+    def loop(self, mute=False):
         """
         Loop is the main method for <Class Backtest>.
         ============================================
@@ -205,6 +216,9 @@ class Backtest:
             self.confirmed_profit, self.profit_today = {}, {}  # 卖出后 已确认收益；继续持仓 浮动盈亏
             self.average_cost, self.investment, self.accumulated_investment = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
             self.win_count, self.lose_count = 0, 0
+
+            self.ProfitTrailing_Already = pd.DataFrame(index=self.Profit_Ceiling,columns=self.STOCK_POOL)
+            self.ProfitTrailing_Already.fillna(False, inplace=True)
 
         def record_daily_profit(day, symbol):
             """
@@ -310,25 +324,30 @@ class Backtest:
             """
             BUY_SIGNALS, SELL_SIGNALS = dict(), dict()
             total_share_required = 0
-            buybuybuy=False
             for symbol in self.STOCK_POOL:
                 SELL_SIGNALS[symbol], BUY_SIGNALS[symbol] = {}, {}
 
                 #止盈
                 for i in range(len(self.Profit_Ceiling)):
-                    if (price_today[symbol] > self.平均成本[symbol] * (1 + self.Profit_Ceiling[i]) and self.share[-1][symbol] > 0):
+                    if (price_today[symbol] > self.平均成本[symbol] * (1 + self.Profit_Ceiling[i]) 
+                        and self.share[-1][symbol] > 0
+                        and not self.ProfitTrailing_Already.loc[self.Profit_Ceiling[i],symbol]
+                        ):
                         SELL_SIGNALS[symbol]["{:.0%}止盈".format(self.Profit_Ceiling[i])] = {
                             "symbol": symbol,
                             "percentage": self.Trailing_Percentage[i],
                             "price": price_today[symbol],
                         }
+                        # 记录该种止盈条件已经止盈过了
+                        self.ProfitTrailing_Already.loc[self.Profit_Ceiling[i],symbol] = True
+                        # 如果是全部止盈(i=0)，则将之前记录清空
+                        if i==0:
+                            self.ProfitTrailing_Already.loc[:,symbol] = False
                         # break语句 保证每次只有一种止盈
                         break
-                
                 #止损
 
                 #买入
-                self.盈利再投资 = self.cash_balance/100
                 if len(SELL_SIGNALS) != 0:
                     if self.pos.loc[day, symbol] > 0:
                         BUY_SIGNALS[symbol]["定投买入"] = {
@@ -337,14 +356,12 @@ class Backtest:
                             "price": price_today[symbol],
                         }
                         total_share_required += self.pos.loc[day, symbol]
-                        buybuybuy = True
             for symbol in self.STOCK_POOL:
                 try:
                     BUY_SIGNALS[symbol]["定投买入"]["amount"] *= (
-                        (self.INITIAL_CAPITAL + self.盈利再投资)/ total_share_required / price_today[symbol])
+                        (self.INITIAL_CAPITAL)/ total_share_required / price_today[symbol])
                 except:
                     pass
-            if buybuybuy:self.cash_balance -= self.盈利再投资
             return BUY_SIGNALS, SELL_SIGNALS
 
         init_loop()
@@ -368,6 +385,7 @@ class Backtest:
             # 记录当日份数和账户余额
             self.share.append(self.share_today)
             self.capital_balance.append(self.balance_today)
+            del self.share_today, self.balance_today
         t1 = time.time()
         tpy = t1 - t0
         print("回测已完成，用时 %5.3f 秒" % tpy)
@@ -381,20 +399,17 @@ class Backtest:
                 return pd.DataFrame(list(d.values()), index=d.keys(), columns=[columns_name])
 
             self.profit_today = dict_to_df(self.profit_today, "profit_today")
-            self.accumulated_profit = self.profit_today.cumsum().rename(
-                columns={"profit_today": "accumulated_profit"}
-            )
-
+            self.accumulated_profit = self.profit_today.cumsum().rename(columns={"profit_today": "accumulated_profit"})
             # confirmed_profit 原先是每天的确认收益，现在用.cumsum() 转成累计的
             self.confirmed_profit = dict_to_df(self.confirmed_profit, "confirmed_profit").cumsum()
 
         convert_types()
-        # average_cost = average_cost.rename(columns={'600519.SH':"average_cost"})
         self.average_cost.plot(title="持股平均成本")
         self.investment.plot(title="投入资金")
         plt.show()
 
-    def summary(self, write_excel=False):
+
+    def summarize(self, write_excel=False):
         """
         Generate backtest report for the given strategy.
         """
@@ -425,8 +440,12 @@ class Backtest:
 
         return profit_summary
 
+    @property
+    def summary(self):
+        self.summarize()
     @classmethod
-    def generate_profit_curve(self, data: pd.DataFrame, column="accumulated_profit"):
+    def generate_profit_curve(self, data: pd.DataFrame, 
+                             columns=["accumulated_profit","confirmed_profit"]):
         import matplotlib.pyplot as plt
         plt.rcParams["font.sans-serif"] = ["SimHei"]
         plt.rcParams["axes.unicode_minus"] = False
@@ -435,8 +454,9 @@ class Backtest:
         fig = plt.figure()
         fig.set_size_inches(12, 12)
         ans = pd.DataFrame(index=data.index)
-        ans["NAV"] = data[column]
-        ans["Daily_pnl"] = data[column].diff()
+        ans["NAV"] = data[columns[0]]
+        ans["Daily_pnl"] = data[columns[0]].diff()
+        ans["confirmed_profit"] = data[columns[1]]
 
         ax = fig.add_subplot(211)
         ax.plot(ans.index, ans["NAV"], linewidth=2, label="累计收益")
@@ -473,12 +493,12 @@ class Backtest:
 
 
 if __name__ == "__main__":
-    pool = ["000016.SH","000905.SH","000009.SH","000991.SH","000935.SH","000036.SH"]
-    # self.STOCK_POOL = ['000905.SH', '600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
+    # pool = ["000016.SH","000905.SH","000009.SH","000991.SH","000935.SH","000036.SH"]
+    pool = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
         # self.STOCK_POOL = ["000036.SH"]
-    test = Backtest(stock_pool=pool, type='index',
+    test = Backtest(stock_pool=pool, type='stock', duration = 50,
                     start_date="2008-01-01", end_date="2018-08-29", 
-                    profit_ceiling=[0.5, 0.4, 0.2], trailing_percentage=[1, 0.3, 0.1])
+                    profit_ceiling=[0.4, 0.2], trailing_percentage=[1,0.2])
                     # profit_ceiling=[0.5], trailing_percentage=[1])
     test.loop()
-    Backtest.generate_profit_curve(test.summary())
+    Backtest.generate_profit_curve(test.summarize())
