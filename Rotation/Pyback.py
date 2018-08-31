@@ -31,8 +31,24 @@ class Backtest:
     ## Backtest
     Core class for a backtest.
     -------------------------
+    Backtest(stock_pool, type = 'stock',
+             start_date="2008-01-01", end_date="2018-08-24", 
+             duration=250, initial_capital=1000,
+             load_data=True,
+             profit_ceiling = [0.4,0.2], trailing_percentage=[1,0.2])
+    
+    Parameters
+    ----------
+    stock_pool: Your pool that you want to test
 
-    >>> test1 = Backtest(stock_pool,start_date="2008-01-01", end_date="2018-08-24")
+    type:
+
+    
+
+    Usage
+    -----
+    >>> test1 = Backtest(stock_pool,\
+                start_date="2008-01-01", end_date="2018-08-24")
     >>> test1.StopLoss = 1
     >>> test.loop()
     """
@@ -65,7 +81,9 @@ class Backtest:
             self.TYPE = 0
         else:
             raise ValueError("Type not recognized.")
-        self.init_data(type=self.TYPE)
+
+        if arg.pop('load_data', True):
+            self.init_data(type=self.TYPE)
 
     def init_data(self, type):
         """
@@ -124,6 +142,19 @@ class Backtest:
         return self._price 
     @price.setter
     def price(self, price_DataFrame):
+        '''
+        The defalut value of the parameter "load_data" is True, 
+        which means the historical price data will be loaded automatically from database.
+
+        However, if you wish to use your own data to perform the backtest,
+        you can simply set Backtest.price = _Your Price DataFrame_
+
+        Note
+        ----
+        _Your Price DataFrame_ must be a instance of pd.DataFrame,
+        and it must contain the columns of your stock pool.  
+        Also, the index of _Your Price DataFrame_ should be <datetime64>.
+        '''
         if isinstance(price_DataFrame, pd.DataFrame):
             self._price = price_DataFrame
             self.technical_indicators() #给price赋值时，重新计算技术指标
@@ -142,6 +173,13 @@ class Backtest:
     
     @property
     def info(self):
+        '''
+        If you want to see the parameters of your current backtest, 
+        you can simply run
+        >>> test = Backtest()
+        >>> test.info
+        And the major parameters will be print on the screen.
+        '''
         print('-'*5, 'Backtest Info', '-'*5)
         print(("Pool:\n"+'{} '*len(self.STOCK_POOL)).format(*self.STOCK_POOL))
         print("Duration\t{}".format(self.DURATION))
@@ -151,10 +189,13 @@ class Backtest:
 
     # %% 技术指标
     def technical_indicators(self):
+        '''
+        The technical indicators for your strategy will be calculated in this part.
+
+        '''
         self._price.fillna(value=0, inplace=True)  # 把早年暂未上市的股票价格填充为0
         self._price_diff = self._price.diff()
         self._price_pct_chg = self._price.pct_change()
-
         self._price_std = self._price.rolling(window=self.DURATION).std()  # 计算标准差
         self._R = (self._price / self._price.shift(1)).apply(np.log)
         self._sigma = self._R.rolling(window=self.DURATION).std()
