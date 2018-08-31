@@ -27,7 +27,7 @@ Created on Sat Jul 21 22:59:47 2018
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import tushare as ts 
+import tushare as ts
 from win32com import client
 
 # 参数
