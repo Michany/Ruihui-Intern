@@ -24,16 +24,16 @@ Here are something this backtest framework can do:
 
 Updated in 2018/8/31
 """
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import warnings
 from collections import Iterable
-from data_reader import get_muti_close_day, get_index_day
+# from data_reader import get_muti_close_day, get_index_day
 try:
     import talib
-except Exception as e:
+except ImportError as e:
     print(e)
 
 
@@ -42,7 +42,7 @@ class Backtest():
     Backtest : Core class for a backtest.  
     -------------------------  
 
-    ``Backtest(stock_pool, type = 'stock',
+    ``Backtest(pool, type = 'stock',
              start_date="2008-01-01", end_date="2018-08-24", 
              duration=250, initial_capital=1000,
              load_data=True,
@@ -50,7 +50,7 @@ class Backtest():
     
     Parameters
     ----------
-    stock_pool: Your pool that you want to test
+    pool: Your pool that you want to test
 
     type: 0 for "index"; 1 for "stock"
 
@@ -59,25 +59,25 @@ class Backtest():
 
     Usage
     -----
-    >>> test1 = Backtest(stock_pool,
+    >>> test1 = Backtest(pool,
                 start_date="2008-01-01", end_date="2018-08-24")
     >>> test1.StopLoss = 1
-    >>> test.loop()
+    >>> test.run()
     >>> test.summary
     """
 
-    def __init__(self, stock_pool, 
+    def __init__(self, pool, 
                  start_date="2008-01-01", end_date="2018-08-24", **arg):
         '''
         Example
         -------
-        >>> Backtest(stock_pool=["000016.SH","000905.SH","000009.SH","000991.SH","000935.SH","000036.SH"], 
+        >>> Backtest(pool=["000016.SH","000905.SH","000009.SH","000991.SH","000935.SH","000036.SH"], 
             END_DATE='2018-8-31',type='index',duration = 250, 
             Profit_Ceiling = [0.4, 0.2], Trailing_Percentage=[1,0.2])
         '''
         self.START_DATE = start_date
         self.END_DATE = end_date
-        self.STOCK_POOL = stock_pool
+        self.POOL = pool
 
         initial_capital = arg.pop("initial_capital", None)
         if initial_capital is None:
@@ -116,10 +116,10 @@ class Backtest():
         """
         print("Fetching Historical Data...")
         if type == 1:
-            price = get_muti_close_day(self.STOCK_POOL, self.START_DATE, self.END_DATE)
+            price = get_muti_close_day(self.POOL, self.START_DATE, self.END_DATE)
         elif type == 0:
             price = {}
-            for symbol in self.STOCK_POOL:
+            for symbol in self.POOL:
                 price[symbol] = get_index_day(symbol, self.START_DATE, self.END_DATE).sclose
             price = pd.DataFrame(price)
         price.fillna(method="ffill", inplace=True)
@@ -202,15 +202,15 @@ class Backtest():
         And the major parameters will be print on the screen.
         '''
         print('-'*5, 'Backtest Info', '-'*5)
-        print(("Pool:\n"+'{} '*len(self.STOCK_POOL)).format(*self.STOCK_POOL))
+        print(("Pool:\n"+'{} '*len(self.POOL)).format(*self.POOL))
         print("Duration\t{}".format(self.DURATION))
         print(("Profit_Ceiling\t"+"{:.0%}\t"*len(self.Profit_Ceiling)).format(*self.Profit_Ceiling))
         print(("Trailing_Pct\t"+"{:.0%}\t"*len(self.Trailing_Percentage)).format(*self.Trailing_Percentage))
 
 
     # %% 技术指标
-    def refresh_TI(self, TI_list:list=[], 
-                   TI_from_TA_lib:dict={}):
+    def refresh_TI(self, TI_list=[], 
+                   TI_from_TA_lib={}):
         '''
         The technical indicators for your strategy will be calculated in this part.
         
@@ -255,7 +255,7 @@ class Backtest():
 
         # 赋权重(仓位)
         pos = self.price.copy()
-        for index in self.STOCK_POOL:
+        for index in self.POOL:
             pos[index] = 1 / (1 + percent_chg[index] * 2) * 100
             pos[index][pos[index] < 0] = 0  # 如果出现仓位<0，则补位为0
         pos *= is_entry_time
@@ -269,7 +269,7 @@ class Backtest():
         print("Timing calculated")
         return pos
 
-    def loop(self, mute=False):
+    def run(self, mute=False):
         """
         Loop is the main method for <Class Backtest>.
         ============================================
@@ -295,11 +295,11 @@ class Backtest():
 
 
         """
-        def init_loop():
+        def init_run():
             # 添加首行（全为0）
             first = {}
             self.平均成本, self.累计投入, self.投入, self.实际投入 = {}, {}, {}, {}
-            for symbol in self.STOCK_POOL:
+            for symbol in self.POOL:
                 first[symbol] = 0
                 self.平均成本[symbol] = 10000
                 self.累计投入[symbol] = 0
@@ -311,7 +311,7 @@ class Backtest():
             self.average_cost, self.investment, self.real_investment, self.accumulated_investment = pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
             self.win_count, self.lose_count = 0, 0
 
-            self.ProfitTrailing_Already = pd.DataFrame(index=self.Profit_Ceiling,columns=self.STOCK_POOL)
+            self.ProfitTrailing_Already = pd.DataFrame(index=self.Profit_Ceiling,columns=self.POOL)
             self.ProfitTrailing_Already.fillna(False, inplace=True)
 
             self.cash_balance_today = 0
@@ -427,7 +427,7 @@ class Backtest():
             """
             BUY_SIGNALS, SELL_SIGNALS = dict(), dict()
             total_share_required = 0
-            for symbol in self.STOCK_POOL:
+            for symbol in self.POOL:
                 SELL_SIGNALS[symbol], BUY_SIGNALS[symbol] = {}, {}
 
                 #止盈
@@ -460,7 +460,7 @@ class Backtest():
                         }
                         total_share_required += self.pos.loc[day, symbol]
             # 将买入的总金额调整至每期固定投入 INITIAL_CAPITAL
-            for symbol in self.STOCK_POOL:
+            for symbol in self.POOL:
                 try:
                     BUY_SIGNALS[symbol]["定投买入"]["amount"] *= (
                         (self.INITIAL_CAPITAL)/ total_share_required / price_today[symbol])
@@ -469,13 +469,13 @@ class Backtest():
             return BUY_SIGNALS, SELL_SIGNALS
 
         # 按天回测正式开始
-        init_loop()
+        init_run()
         t0 = time.time()
         for day in self.price.index[self.DURATION:]:
             self.balance_today, self.share_today = {"date": day}, {"date": day}
             buy_signals, sell_signals = Check_Signal(self.price.loc[day])
             # print(buy_signals, sell_signals)
-            for symbol in self.STOCK_POOL:
+            for symbol in self.POOL:
                 for signal in sell_signals[symbol]:
                     Sell(**sell_signals[symbol][signal])
                 for signal in buy_signals[symbol]:
@@ -495,20 +495,18 @@ class Backtest():
         tpy = t1 - t0
         print("\n回测已完成，用时 %5.3f 秒" % tpy)
 
-        def convert_types():
-            # 转换数据类型
-            self.share = pd.DataFrame(self.share).set_index("date")
-            self.capital_balance = pd.DataFrame(self.capital_balance).set_index("date")
+        
+        self.share = pd.DataFrame(self.share).set_index("date")
+        self.capital_balance = pd.DataFrame(self.capital_balance).set_index("date")
 
-            def dict_to_df(d: dict, columns_name: str):
-                return pd.DataFrame(list(d.values()), index=d.keys(), columns=[columns_name])
+        def dict_to_df(d: dict, columns_name: str):
+            return pd.DataFrame(list(d.values()), index=d.keys(), columns=[columns_name])
 
-            self.profit_today = dict_to_df(self.profit_today, "profit_today")
-            self.accumulated_profit = self.profit_today.cumsum().rename(columns={"profit_today": "accumulated_profit"})
-            # confirmed_profit 原先是每天的确认收益，现在用.cumsum() 转成累计的
-            self.confirmed_profit = dict_to_df(self.confirmed_profit, "confirmed_profit").cumsum()
+        self.profit_today = dict_to_df(self.profit_today, "profit_today")
+        self.accumulated_profit = self.profit_today.cumsum().rename(columns={"profit_today": "accumulated_profit"})
+        # confirmed_profit 原先是每天的确认收益，现在用.cumsum() 转成累计的
+        self.confirmed_profit = dict_to_df(self.confirmed_profit, "confirmed_profit").cumsum()
 
-        convert_types()
         self.average_cost.plot(title="持股平均成本")
         self.real_investment.plot(title="投入资金")
         plt.show()
@@ -557,6 +555,14 @@ class Backtest():
         self.rate_of_return = (self.capital_balance.iloc[-1].sum()+self.cash_balance_today)/self.real_investment.T.sum().max()-1
         print("总收益率\t{:.2%}".format(self.rate_of_return))
         print("资金利用效率")
+
+        print("------  回撤情况  ------")
+        self.drawdown()
+        print("最大回撤 {:.2f}, {} ~ {}".format(*self.max_draw_down))
+        print("----  逐年收益及回撤  ----")
+        print("年份\t收益\t\t回撤\t起止时间")
+        for year in self.yearly_drawdown:
+            print("{}\t{:.2f}\t\t{:.2%}\t{} ~ {}".format(year, self.yearly_return[year], *self.yearly_drawdown[year]))
         print("------  参数设定  ------")
         self.info
 
@@ -567,71 +573,71 @@ class Backtest():
     def summary(self):
         self.summarize()
 
-    @classmethod
     def drawdown(self):
         '''
         计算内容：最大回撤比例，累计收益率  
         计算方式：单利  
         返回结果：最大回撤率，开始日期，结束日期，总收益率，年化收益，年化回撤  
         '''
-        t['Capital'] = self.accumulated_profit
+        warnings.simplefilter("ignore")
+        t0=time.time()
 
+        t =self.accumulated_profit.rename(columns={'accumulated_profit':'Capital'})
+        t['date'] = self.accumulated_profit.index
+        t['Year']=t['date'].apply(lambda x:x.year)
+        t.set_index('date', inplace=True)
+
+        # 按年统计
         yearly_drawdown = dict()
-        
-        t['Year']=pd.Series(t['Date/Time'][i].year for i in range(len(t)))
+        yearly_return = dict() # 记录年收益
         t_group=t.groupby('Year')
         year_groups=[t_group.get_group(i) for i in t_group.groups.keys()]
         for year_group in year_groups:
-            max_draw_down, temp_max_value = 0, 0
-            start_date, end_date, current_start_date = 0, 0, 0
+            max_draw_down, temp_max_value = 0, year_group['Capital'][0]
+            start_date, end_date, current_start_date = year_group.index[0], year_group.index[-1], year_group.index[0]
             continous = False # 是否连续
-            for i in year_group.index:
-                if year_group['#'][i]>0: continue
-                if temp_max_value < year_group['Capital'][i]:
-                    current_start_date = year_group['Date/Time'][i]
-                    temp_max_value = max(temp_max_value, year_group['Capital'][i])
+            for day in year_group.index:
+                if temp_max_value < year_group.loc[day,'Capital']:
+                    current_start_date = day
+                    temp_max_value = max(temp_max_value, year_group.loc[day,'Capital'])
                     continous = False
                 else:
-                    if max_draw_down>year_group['Capital'][i]/temp_max_value-1:
+                    if max_draw_down>year_group.loc[day,'Capital']/temp_max_value-1:
                         if not continous: 
                             continous = True
-                        max_draw_down = year_group['Capital'][i]/temp_max_value-1
+                        max_draw_down = year_group.loc[day,'Capital']/temp_max_value-1
                     else:
                         if continous:
                             continous = False
                             start_date = current_start_date
-                            end_date = year_group['Date/Time'][i]
-            yearly_drawdown[year_group['Year'][i]] = max_draw_down, start_date, end_date            
+                            end_date = day
+            yearly_drawdown[day.year] = max_draw_down, start_date, end_date
+            yearly_return[day.year] = year_group['Capital'][-1] - year_group['Capital'][0]
 
-        yearly_return = dict() # 记录年收益率
-        max_draw_down, temp_max_value = 0, 0
-        start_date, end_date, current_start_date = 0, 0, 0
+        #统计整体
+        max_draw_down, temp_max_value = 0, t['Capital'][0]
+        start_date, end_date, current_start_date = t.index[0], t.index[-1], t.index[0]
         continous = False # 是否连续
-
-        for i in range(2, len(t),2): # 偶数行的数据
-            if temp_max_value < t['Capital'][i-2]:
-                current_start_date = t['Date/Time'][i]
-            temp_max_value = max(temp_max_value, t['Capital'][i-2])
-            if max_draw_down>t['Capital'][i]/temp_max_value-1:
+        for day in t.index:
+            if temp_max_value < t.loc[day,'Capital']:
+                current_start_date = day
+                temp_max_value = max(temp_max_value, t.loc[day,'Capital'])
+                continous = False            
+            if max_draw_down>t.loc[day,'Capital']-temp_max_value:#t.loc[day,'Capital']/temp_max_value-1:
                 if not continous: 
                     continous = True
-                max_draw_down = t['Capital'][i]/temp_max_value-1
+                max_draw_down = t.loc[day,'Capital']-temp_max_value#t.loc[day,'Capital']/temp_max_value-1
             else:
                 if continous:
                     continous = False
                     start_date = current_start_date
-                    end_date = t['Date/Time'][i]
-
-            # 统计年收益率
-            year = t['Date/Time'][i].year
-            yearly_return[year] = t['Net Profit - Cum Net Profit'][i]
-        
-        total_return = t['Capital'][i]/t['Capital'][0]-1
-        yearly_return = pd.Series(yearly_return) / t['Capital'][0]
-        first_year = t['Date/Time'][1].year, yearly_return[t['Date/Time'][1].year]
-        yearly_return = yearly_return.diff()
-        yearly_return[first_year[0]] = first_year[1]
-        return max_draw_down, start_date, end_date, total_return, pd.Series(yearly_return), yearly_drawdown
+                    end_date = day
+        t1 = time.time()
+        tpy = t1 - t0
+        print("回撤计算已完成，用时 %5.3f 秒" % tpy)
+        self.max_draw_down = (max_draw_down, start_date, end_date)#.strftime("%Y/%m/%d")
+        self.yearly_drawdown = yearly_drawdown
+        self.yearly_return = yearly_return
 
     @classmethod
     def generate_profit_curve(self, data: pd.DataFrame, 
@@ -683,7 +689,14 @@ class Backtest():
 # TODO Parameter Optimizer
 class Optimizer():
     def __init__(self, **arg):
-        self
+        pass
+    @classmethod
+    def pool_optimize(self, backtest:Backtest, pool):
+        for symbol in pool:
+            backtest.POOL = [].append(symbol)
+            backtest.run(mute=True)
+            backtest.summary
+        return
     def step_in_optimize(self):
         return
     def auto_optimize(self):
@@ -691,7 +704,7 @@ class Optimizer():
     def random_optimize(self):
         return
     def set_parameters(self):
-        Backtest()
+        return
     
 
 
@@ -699,15 +712,16 @@ if __name__ == "__main__":
     pool = ["000016.SH","000905.SH","000009.SH","000991.SH","000935.SH","000036.SH"]
     # pool = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
     # pool = ["000036.SH"]
-    test = Backtest(stock_pool=pool, type='index', duration = 250,
+    test = Backtest(pool=pool, type='stock', duration = 250,
                     start_date="2007-02-01", end_date="2018-08-29", 
                     load_data=False,
                     profit_ceiling=[0.6, 0.5, 0.4, 0.3, 0.2], 
                     trailing_percentage=[1,0.8, 0.6, 0.4, 0.2])
                     # profit_ceiling=[0.5], trailing_percentage=[1])
-    t = pd.read_excel(r"C:\Users\meiconte\Documents\RH\Historical Data\指数价2007.xlsx",
+    t = pd.read_excel(r"C:\Users\70242\Documents\Python\Ruihui-Intern\Historical Data\指数价2007.xlsx",
                       dtype={'Date': 'datetime64'})
     price = t.set_index("Date")
     test.price = price
-    test.loop(mute=True)
+    test.run(mute=True)
     Backtest.generate_profit_curve(test.summarize())
+    Optimizer.pool_optimize(backtest=test,pool=test.POOL)
