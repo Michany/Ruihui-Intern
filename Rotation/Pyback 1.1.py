@@ -237,6 +237,29 @@ class Backtest():
     def timing(self):
         # %% 策略部分 分配仓位
         # 买入时机
+        import pymssql
+        conn=pymssql.connect(server='192.168.0.28',port=1433,user='sa',password='abc123',database='rawdata',charset='utf8') 
+        SQL='''
+        SELECT b.code, b.weight, a.S_FA_ROE_TTM, a.ANN_DT, a.s_fa_totalequity_mrq
+        FROM AShareTTMHis as a, [沪深300成分权重] as b
+        where b.[Date] BETWEEN '2018-07-01' and '2018-07-03'
+        and a.S_INFO_WINDCODE = b.code 
+        ORDER BY b.code'''
+        data = pd.read_sql(SQL,conn)
+        data = data.astype({'ANN_DT':'datetime64'})
+        # data.set_index('ANN_DT',inplace=True)
+
+        import tushare as ts
+        industry=ts.get_industry_classified()
+        industry['code']=industry.code.apply(lambda x:(x+'.SH') if x.startswith('6') else (x+'.SZ'))
+        # industry.drop(columns=[''])
+        roe=data.merge(industry, on='code')
+        roe.set_index('ANN_DT',inplace=True)
+        roe[:str(pd.Timestamp('2018-08-30'))]
+        # TODO ROE>15,ROE稳定,市值排名前50%或者大于10亿
+        roe.quantile(0.5)
+
+
         is_entry_time = np.square(self._sigma * 1) - self._mu > -0.3
         percent_chg = (self.price / self.price.shift(int(self.DURATION / 2))) - 1
 
