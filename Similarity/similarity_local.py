@@ -27,12 +27,12 @@ TARGET_WINDOWS = [int(i*4*60/FREQUENCY) for i in TARGET_DAYS]
 INDEX_SYMBOL = '000016.SH'
 
 #%% 获取历史行情数据
-t = pd.read_excel('sh.xlsx', dtype={'ddate':'datetime64'})
+t = pd.read_excel('cyb.xlsx', dtype={'ddate':'datetime64'})
 t.rename(columns={'ddate':'date', 'sclose':'close'}, inplace=True)
 t.set_index('date', inplace=True)
 t = t.close
 
-now = ts.get_hist_data(code='sh', start=None, end=None,
+now = ts.get_hist_data(code='cyb', start=None, end=None,
                        ktype='5', retry_count=3, pause=0.001)
 now.sort_values(by='date', ascending=True, inplace=True)
 

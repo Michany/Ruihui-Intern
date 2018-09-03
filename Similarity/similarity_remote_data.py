@@ -11,8 +11,6 @@ Created on Sat Jul 21 22:59:47 2018
 - 含自动获取近期数据功能
   需要第三方库 tushare
   在命令行中输入 pip install tushare 即可安装。
-  【若有条件获取公司数据库数据，可以修改变量 now】
-  【另外需要对公司数据库中获取的 DataFrame 做设定索引的操作，并修改列名为 date close】
 
 - 含 excel 转换为 pdf 的功能  
   需要第三方库 win32com
@@ -27,21 +25,30 @@ Created on Sat Jul 21 22:59:47 2018
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import tushare as ts
-from win32com import client
+try:
+    import tushare as ts
+    from win32com import client
+except:
+    raise ImportWarning("没有安装所需的包：tushare， win32com")
 
 # 参数
-TARGET_DAYS = [5, 20]             # 目标未来区间长度：5天、20天
+TARGET_DAYS = [5, 25]             # 目标未来区间长度：5天、20天
 FREQUENCY = 15                    # 数据频率：15 Min
 TARGET_WINDOWS = [int(i*4*60/FREQUENCY) for i in TARGET_DAYS]
-INDEX_SYMBOL = '000016.SH'        # 指数代码，用于命名文件
-INDEX_CODE = 'sz50'               # 指数代码，用于tushare获取数据
+INDEX_SYMBOL = '399006.SZ'        # 指数代码，用于命名输出的excel和pdf文件
+INDEX_CODE = 'cyb'                # 指数代码，用于tushare获取数据，也用于查找文件名
 CORR_THRESHOLD = 0.8              # 相关系数阈值
 
 #%% 获取历史行情数据
-t = pd.read_excel(r"C:\Users\70242\Documents\Python\RH\Similarity\50.xlsx", dtype={'ddate':'datetime64'})
-t.rename(columns={'ddate':'date', 'sclose':'close'}, inplace=True)
-t.set_index('date', inplace=True)
+print("[Processing]: Loading data...")
+try:#查看根目录下是否有历史行情文件
+    t = pd.read_excel(r"%s.xlsx"%INDEX_CODE, dtype={'ddate':'datetime64'})
+    t.rename(columns={'ddate':'date', 'sclose':'close'}, inplace=True)
+    t.set_index('date', inplace=True)
+except:#如果没有，则调取公司数据库获取
+    from data_reader import get_index_min
+    t=get_index_min(INDEX_SYMBOL,'2007-01-01','2018-06-30',freq='15min')
+    t.rename(columns={'sclose':'close'}, inplace=True)
 t = t.close
 
 now = ts.get_hist_data(code=INDEX_CODE, start=None, end=None,
@@ -59,8 +66,9 @@ for i in range(0, len_t-len_now):
     corr.append(temp_corr[1])
 corr = pd.DataFrame(corr)
 ans = corr[corr[0] > CORR_THRESHOLD]
-print('[Processing]: Correlation done')
-
+print('[Processing]: Correlation calculation done!')
+if len(ans)==0:
+    raise RuntimeError("今日数据在给定阈值下没有找到历史相似。。。")
 #%% 对满足条件的历史序列分组，如果index连续则视为一组
 group_list = []
 group, last_i = 0, 0
@@ -82,15 +90,16 @@ def cal_prob(d: int):
         int(ans_groups.get_group(j + 1).idxmax()[0]) for j in range(ans_groups.size().size)
     ]
     # 如果计算概率时越界，则把该条记录去除，并提出警示
-    while (index_max_corr[-1]+len_now+forward_length+500) > len_t:
+    while (index_max_corr[-1]+len_now+forward_length+499) > len_t:
         print("[Warning]: Not enough length for forward-looking, will drop the record of", t.index[index_max_corr[-1]])
         index_max_corr = index_max_corr[:-1]
-    prob_up = sum(t[i] < t[i + len_now + forward_length]
+    prob_up = sum(t[i]*1.05 < t[i + len_now + forward_length]
                   for i in index_max_corr) / ans_groups.size().size
-    prob_down = 1 - prob_up
-    print('{} days:\n prob_up: {};\n prob_down: {};'.format(
-        TARGET_DAYS[d], prob_up, prob_down))
-    return prob_up, prob_down
+    prob_down = sum(t[i]*0.95 > t[i + len_now + forward_length]
+                  for i in index_max_corr) / ans_groups.size().size
+    prob_mid = 1-prob_up-prob_down
+    print('{} days:\n prob_up: {};\n prob_down: {};'.format(TARGET_DAYS[d], prob_up, prob_down))
+    return prob_up, prob_mid, prob_down
 
 cal_prob(1)
 index_max_corr = [int(ans_groups.get_group(j+1).idxmax()[0]) for j in range(ans_groups.size().size)]
@@ -134,16 +143,18 @@ def adjust_axis_limit(p1, p2, p3, p4):
          future['width']*p3)*future['average']/curt['average']
     d = (curt['upper']+curt['width']*future['upward'] /
          future['width']*p4)*future['average']/curt['average']
-adjust_axis_limit(2.5, 2.5, 3, 3)
+adjust_axis_limit(1.5, 1, 7, 8)
 
 #%% 画图
+plt.rcParams["font.sans-serif"] = ["SimHei"]
+plt.rcParams["axes.unicode_minus"] = False
 fig = plt.figure()
 fig.set_size_inches(16, 12)
 
 # 放置主坐标轴（左轴），用于标示当前行情序列
 ax = fig.add_subplot(111)
 ax.plot(range(t.index[best_history_index].toordinal(), t.index[best_history_index].toordinal() + len_now), 
-        now['close'], linewidth=3, label='current', c='#007ac6')
+        now['close'], linewidth=3, label='当前状态', c='#007ac6')
 plt.ylim((a, b)) #调整刻度，更美观地对其
 plt.grid(color='#007ac6', alpha=0.7, axis='y',linestyle = 'dashed')
 plt.yticks(fontsize=12)
@@ -151,21 +162,22 @@ ax.spines['top'].set_visible(False)
 ax.spines['bottom'].set_visible(False)
 ax.spines['left'].set_visible(False)
 ax.spines['right'].set_visible(False)
-plt.xlabel('历史区间: '+str(t.index[best_history_index])+' ~ '+str(t.index[best_history_index+len_now+forward_length]),
+plt.legend(fontsize=18,loc='upper left')
+plt.xlabel('历史区间: '+ t.index[best_history_index].strftime('%Y/%m/%d')+' - '+t.index[best_history_index+len_now+forward_length].strftime('%Y/%m/%d'),
            fontsize=20)
 # 放置次坐标轴（右轴），用于标示历史行情序列
 ax2 = ax.twinx()
 history = t[best_history_index:best_history_index + len_now + forward_length]
 ax2.plot(
     range(t.index[best_history_index].toordinal(), t.index[best_history_index].toordinal()+len_now+forward_length), 
-    history, linewidth=3, label='history', c='#f08600')
+    history, linewidth=3, label='历史行情', c='#f08600')
 ax2.spines['top'].set_visible(False)
 ax2.spines['bottom'].set_visible(False)
 ax2.spines['left'].set_visible(False)
 ax2.spines['right'].set_visible(False)
 plt.ylim((c, d))
 plt.axis('off')
-
+plt.legend(fontsize=18,loc='upper right')
 # 标记x轴
 plt.xticks([])
 fig.savefig(r'curve.png', dpi=144, bbox_inches='tight')
@@ -234,12 +246,12 @@ def output_to_excel():
     wb = Workbook()
     ws = wb.active
 
-    prob_up_5, prob_down_5 = cal_prob(0)
-    prob_up_20, prob_down_20 = cal_prob(1)
+    prob_up_5, prob_mid_5, prob_down_5 = cal_prob(0)
+    prob_up_20, prob_mid_20, prob_down_20 = cal_prob(1)
 
-    ws.append(['5天','概率', '20天', '概率'])
+    ws.append(['一周','概率', '一月', '概率'])
     ws.append(['', prob_up_5, '', prob_up_20])
-    ws.append(['盘整', 0, '盘整', 0])
+    ws.append(['盘整', prob_mid_5, '盘整', prob_mid_20])
     ws.append(['', prob_down_5, '', prob_down_20])
 
     up, up2 = Image('up.png'), Image('up.png')

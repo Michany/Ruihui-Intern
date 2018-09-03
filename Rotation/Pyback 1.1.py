@@ -6,23 +6,10 @@ Main Features
 -------------
 Here are something this backtest framework can do:
 
-- 读取数据库价格；
-  也可读取给定的价格DataFrame，并计算刷新各个技术指标；
-  指数/股票均可读取
-- 盈利再投资
-  盈利再投资会导致在相对高位投更多的钱
-  （目前采用的方式是）
-  一开始每周投入￥1,000，金额计入real_investment。
-  一旦达到设定的止盈条件，立即赎回。
-  赎回后的现金由cash_balance变量来记录。
-  下一期投资时，先查看cash_balance余额是否足够投入新一期，
-  不足的话额外补足，补足的金额计入real_investment。
-- 分级止盈赎回，可以分任意多个等级
-  实际效果来看，分级不如全都赎回更好
-- TODO 新增评价指标 资金利用效率
-- 统计回撤
+- 选ROE始终>15且比较稳定，ROE位居行业内首位
 
-Updated in 2018/8/31
+
+Updated in 2018/9/3
 """
 import pandas as pd
 import numpy as np
@@ -446,6 +433,7 @@ class Backtest():
                         # 如果是全部止盈(i=0)，则将之前记录清空
                         if i==0:
                             self.ProfitTrailing_Already.loc[:,symbol] = False
+                            # 重新审查
                         # break语句 保证每次只有一种止盈
                         break
                 #止损
@@ -690,6 +678,7 @@ class Backtest():
 class Optimizer():
     def __init__(self, **arg):
         pass
+    @classmethod
     def pool_optimize(self, backtest, pool):
         backtest.info
         for symbol in pool:
