@@ -818,4 +818,4 @@ if __name__ == "__main__":
     # test.price = price
     test.run(mute=True)
     Backtest.generate_profit_curve(test.summarize())
-    Optimizer.pool_optimize(backtest=test,pool=test.POOL)
+    #Optimizer.pool_optimize(backtest=test,pool=test.POOL)
