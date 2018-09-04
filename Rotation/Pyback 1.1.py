@@ -23,7 +23,7 @@ try:
 except ImportError as e:
     print(e)
 
-
+#%%
 class Backtest():
     """
     Backtest : Core class for a backtest.  
@@ -177,7 +177,7 @@ class Backtest():
         if isinstance(pos_DataFrame, pd.DataFrame):
             self._pos = pos_DataFrame
         else:
-            raise ValueError("Unable to handle the inputted position data of type {}, must be <pd.DataFrame>.".format(type(pos_DataFrame)))            
+            raise ValueError("Unable to handle the inputted position data of type {}, must be <pd.DataFrame>.".format(type(pos_DataFrame).__name__))            
     
     @property
     def info(self):
@@ -233,10 +233,7 @@ class Backtest():
                     print("Technical indicator \'{}\' will not be calculated.")
                     return
 
-
-    def timing(self):
-        # %% 策略部分 分配仓位
-        # 买入时机
+    def choosing(self):
         import pymssql
         conn=pymssql.connect(server='192.168.0.28',port=1433,user='sa',password='abc123',database='rawdata',charset='utf8') 
         SQL='''
@@ -247,19 +244,75 @@ class Backtest():
         ORDER BY b.code'''
         data = pd.read_sql(SQL,conn)
         data = data.astype({'ANN_DT':'datetime64'})
+        data.drop_duplicates(subset=['code','ANN_DT'],inplace=True)
         # data.set_index('ANN_DT',inplace=True)
 
         import tushare as ts
         industry=ts.get_industry_classified()
         industry['code']=industry.code.apply(lambda x:(x+'.SH') if x.startswith('6') else (x+'.SZ'))
+        print("Data OK\n正在选股...")
+
+        t0=time.time()
         # industry.drop(columns=[''])
         roe=data.merge(industry, on='code')
         roe.set_index('ANN_DT',inplace=True)
-        roe[:str(pd.Timestamp('2018-08-30'))]
         # TODO ROE>15,ROE稳定,市值排名前50%或者大于10亿
-        roe.quantile(0.5)
+        # roe.quantile(0.5)
+        g = roe.groupby('code')
+        roe_strong=pd.DataFrame()
+        roe_stable=pd.DataFrame()
+        roe_mean=pd.DataFrame()
+        for firm in g:
+            print("正在计算 {}".format(firm[0]),end='\r')
+            for day in firm[1].index:
+                temp = firm[1].S_FA_ROE_TTM.loc[:day]
+                roe_stable.loc[day,firm[0]]=temp.std()<7
+                roe_mean.loc[day,firm[0]]=temp.mean()
+        roe_strong = roe_mean>15
+        choice = roe_strong * roe_stable
+        choice.sort_index(inplace=True)
+        choice.fillna(method='ffill',inplace=True) # 用最新的roe数据，直至新的roe数据出现，所以用ffill
+        choice = choice[self.START_DATE:self.END_DATE] #时间截断
+        roe_mean=roe_mean.sort_index().fillna(method='ffill')
+        # TODO 行业内排名第一
+        行业对照表 = roe.drop_duplicates(subset=['code','c_name'])
+        行业对照表=行业对照表.drop(columns=['weight','S_FA_ROE_TTM','s_fa_totalequity_mrq','name']).set_index('code')
+        self.行业对照表=行业对照表
 
+        industry_choice=pd.DataFrame(index=choice.index,columns=set(行业对照表.c_name))
+        industry_choice.fillna(0, inplace=True)
 
+        for symbol in choice.columns:
+            sector=行业对照表.loc[symbol][0]
+            industry_choice.loc[choice[symbol][choice[symbol].isin([1])].index, sector]=\
+                industry_choice.loc[choice[symbol][choice[symbol].isin([1])].index, sector].apply(
+                    lambda x:x+[symbol,] if isinstance(x,list) else [symbol,])
+        def compare_then_place(existSymbols, day):
+            temp_max=-20
+            if existSymbols==0:
+                return 0
+            for existSymbol in existSymbols:
+                if roe_mean.loc[day,existSymbol] > temp_max:
+                    temp_max = roe_mean.loc[day,existSymbol]
+                    max_symbol = existSymbol
+            return max_symbol
+        for day in industry_choice.index:
+            industry_choice.loc[day]=industry_choice.loc[day].T.apply(compare_then_place,args=(day,))
+        self.industry_choice=industry_choice
+        t1 = time.time()
+        tpy = t1 - t0
+        print("\n行业内优选已完成，选股总用时 %5.3f 秒" % tpy)
+
+        # 所有曾经选中过的股票都要获取历史数据
+        s = set()
+        for sector in industry_choice.columns:
+            s=s.union(set(industry_choice[sector]))
+        s.remove(0)
+        self.chosed_pool = s
+
+    def timing(self):
+        # %% 策略部分 分配仓位
+        # 买入时机
         is_entry_time = np.square(self._sigma * 1) - self._mu > -0.3
         percent_chg = (self.price / self.price.shift(int(self.DURATION / 2))) - 1
 
@@ -321,8 +374,10 @@ class Backtest():
             self.average_cost, self.investment, self.real_investment, self.accumulated_investment = pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
             self.win_count, self.lose_count = 0, 0
 
-            self.ProfitTrailing_Already = pd.DataFrame(index=self.Profit_Ceiling,columns=self.POOL)
+            self.ProfitTrailing_Already = pd.DataFrame(index=self.Profit_Ceiling,
+                                                       columns=self.POOL+list(self.industry_choice.columns)) # 加sector
             self.ProfitTrailing_Already.fillna(False, inplace=True)
+            self.ProfitTrailing_Already.loc[1,:] = True
 
             self.cash_balance_today = 0
             self.cash_balance = pd.DataFrame(columns=['cash_balance'])
@@ -439,7 +494,7 @@ class Backtest():
             total_share_required = 0
             for symbol in self.POOL:
                 SELL_SIGNALS[symbol], BUY_SIGNALS[symbol] = {}, {}
-
+                sector = self.行业对照表.loc[symbol][0]
                 #止盈
                 for i in range(len(self.Profit_Ceiling)):
                     if (price_today[symbol] > self.平均成本[symbol] * (1 + self.Profit_Ceiling[i]) 
@@ -451,25 +506,44 @@ class Backtest():
                             "percentage": self.Trailing_Percentage[i],
                             "price": price_today[symbol],
                         }
+                        if i==0:
+                            # 如果是全部止盈(i=0)，则将之前记录清空
+                            self.ProfitTrailing_Already.loc[:,symbol] = False
+                            # 将sector设置为已经止盈，接下来可以考虑开始定投新的股票
+                            self.ProfitTrailing_Already.loc[1,sector] = True
+                        else: 
+                            # 如果是部分止盈，把已经全部止盈的条件改为False
+                            self.ProfitTrailing_Already.loc[self.Profit_Ceiling[0],symbol] = False
+                            # 重新审查
                         # 记录该种止盈条件已经止盈过了
                         self.ProfitTrailing_Already.loc[self.Profit_Ceiling[i],symbol] = True
-                        # 如果是全部止盈(i=0)，则将之前记录清空
-                        if i==0:
-                            self.ProfitTrailing_Already.loc[:,symbol] = False
-                            # 重新审查
+                        
                         # break语句 保证每次只有一种止盈
                         break
                 #止损
 
                 #买入（仅在没有卖出信号下买入）
                 if len(SELL_SIGNALS[symbol]) == 0:
-                    if self.pos.loc[day, symbol] > 0:
-                        BUY_SIGNALS[symbol]["定投买入"] = {
-                            "symbol": symbol,
-                            "amount": self.pos.loc[day, symbol],
-                            "price": price_today[symbol],
-                        }
-                        total_share_required += self.pos.loc[day, symbol]
+                    if self.pos.loc[day, symbol] > 0: # 是定投时间点
+                        if not self.ProfitTrailing_Already.loc[self.Profit_Ceiling[0],symbol]: # 还没有全部止盈
+                            BUY_SIGNALS[symbol]["定投买入"] = {
+                                "symbol": symbol,
+                                "amount": self.pos.loc[day, symbol],
+                                "price": price_today[symbol],
+                            }
+                            total_share_required += self.pos.loc[day, symbol]
+                        
+                        if symbol == self.industry_choice.loc[day, sector] and self.ProfitTrailing_Already.loc[1,sector]:#该行业原先定投的股票已经全部止盈，而且新买入的股票是roe的天选之子
+                            BUY_SIGNALS[symbol]["选股开仓"] = {
+                                "symbol": symbol,
+                                "amount": self.pos.loc[day, symbol],
+                                "price": price_today[symbol],
+                            }
+                            total_share_required += self.pos.loc[day, symbol]
+                            # 买入后，重置这个变量，说明该行业、该股票还未全部止盈
+                            self.ProfitTrailing_Already.loc[1,sector] = False
+                            self.ProfitTrailing_Already.loc[1,symbol] = False
+                    
             # 将买入的总金额调整至每期固定投入 INITIAL_CAPITAL
             for symbol in self.POOL:
                 try:
@@ -482,6 +556,8 @@ class Backtest():
         # 按天回测正式开始
         init_run()
         t0 = time.time()
+        self.industry_choice=self.industry_choice.reindex(index=self.price.index, method='ffill')
+
         for day in self.price.index[self.DURATION:]:
             self.balance_today, self.share_today = {"date": day}, {"date": day}
             buy_signals, sell_signals = Check_Signal(self.price.loc[day])
@@ -697,6 +773,7 @@ class Backtest():
         plt.grid()
         plt.show()
 
+#%%
 # TODO Parameter Optimizer
 class Optimizer():
     def __init__(self, **arg):
@@ -721,21 +798,24 @@ class Optimizer():
         return
     
 
-
+#%%
 if __name__ == "__main__":
     pool = ["000016.SH","000905.SH","000009.SH","000991.SH","000935.SH","000036.SH"]
     # pool = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
     # pool = ["000036.SH"]
-    test = Backtest(pool=pool, type='stock', duration = 250,
-                    start_date="2007-02-01", end_date="2018-08-29", 
+    test = Backtest(pool=[], type='stock', duration = 250,
+                    start_date="20070201", end_date="20180829", 
                     load_data=False,
                     profit_ceiling=[0.6, 0.5, 0.4, 0.3, 0.2], 
                     trailing_percentage=[1,0.8, 0.6, 0.4, 0.2])
                     # profit_ceiling=[0.5], trailing_percentage=[1])
-    t = pd.read_excel(r"C:\Users\\meiconte\Documents\RH\Historical Data\指数价2007.xlsx",
-                      dtype={'Date': 'datetime64'})
-    price = t.set_index("Date")
-    test.price = price
+    test.choosing()
+    test.POOL = list(test.chosed_pool) #包含所有选择的股票
+    test.init_data(type=1) # 获取全部的历史数据（冗余）
+    # t = pd.read_excel(r"C:\Users\\meiconte\Documents\RH\Historical Data\指数价2007.xlsx",
+    #                   dtype={'Date': 'datetime64'})
+    # price = t.set_index("Date")
+    # test.price = price
     test.run(mute=True)
     Backtest.generate_profit_curve(test.summarize())
     Optimizer.pool_optimize(backtest=test,pool=test.POOL)
