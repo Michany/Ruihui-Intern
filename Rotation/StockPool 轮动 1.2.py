@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import talib
 
-#STOCK_POOL = ['600000.SH', '600015.SH', '600029.SH', '600039.SZ', '600059.SZ', '600085.SH', '600132.SH']
+# STOCK_POOL = ['600000.SH', '600015.SH', '600029.SH', '600039.SZ', '600059.SZ', '600085.SH', '600132.SH']
 STOCK_POOL = ['600048.SH', '600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
 START_DATE = '2008-01-01'
 END_DATE = '2018-08-16'
@@ -38,7 +38,7 @@ print("Calculating RSI")
 RSI_Duration = 12
 rsi = {}
 for index in STOCK_POOL:
-    rsi[index] = talib.RSI(price[index].shift(-1), RSI_Duration)
+    rsi[index] = talib.RSI(price[index].shift(0), RSI_Duration)
 rsi = pd.DataFrame(rsi)
 
 
@@ -46,7 +46,7 @@ rsi = pd.DataFrame(rsi)
 # 总共买3个标的
 amount = 3
 # 关键：RSI越高越买，排序时需要用 ascending=False
-rank = rsi.rank(axis=1, ascending=False)
+rank = rsi.rank(axis=1, ascending=True)
 price.fillna(value=0, inplace=True)  # 把早年暂未上市的股票价格填充为0
 price_diff = price.diff()
 price_pct_chg = price.pct_change()
@@ -142,9 +142,9 @@ profit_summary = pd.concat(
 profit_summary.fillna(method='ffill',inplace=True)
 # 最终版
 
+import matplotlib.pyplot as plt
 
 def generate_profit_curve(ans: pd.DataFrame, column='accumulated_profit'):
-    import matplotlib.pyplot as plt
     fig = plt.figure()
     fig.set_size_inches(12, 12)
     ans['NAV'] = ans[column]
@@ -178,3 +178,4 @@ def generate_profit_curve(ans: pd.DataFrame, column='accumulated_profit'):
 
 
 generate_profit_curve(profit_summary)
+plt.show()

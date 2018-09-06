@@ -35,8 +35,8 @@ except:
 TARGET_DAYS = [5, 25]             # 目标未来区间长度：5天、20天
 FREQUENCY = 15                    # 数据频率：15 Min
 TARGET_WINDOWS = [int(i*4*60/FREQUENCY) for i in TARGET_DAYS]
-INDEX_SYMBOL = '399006.SZ'        # 指数代码，用于命名输出的excel和pdf文件
-INDEX_CODE = 'cyb'                # 指数代码，用于tushare获取数据，也用于查找文件名
+INDEX_SYMBOL = '000001.SH'        # 指数代码，用于命名输出的excel和pdf文件
+INDEX_CODE = 'sh'                # 指数代码，用于tushare获取数据，也用于查找文件名
 CORR_THRESHOLD = 0.8              # 相关系数阈值
 
 #%% 获取历史行情数据
@@ -68,7 +68,7 @@ corr = pd.DataFrame(corr)
 ans = corr[corr[0] > CORR_THRESHOLD]
 print('[Processing]: Correlation calculation done!')
 if len(ans)==0:
-    raise RuntimeError("今日数据在给定阈值下没有找到历史相似。。。")
+    raise RuntimeError("今日数据在给定阈值下没有找到历史相似，请尝试减小阈值")
 #%% 对满足条件的历史序列分组，如果index连续则视为一组
 group_list = []
 group, last_i = 0, 0
@@ -84,13 +84,13 @@ ans_groups = ans.groupby(1)
 
 #%% 计算概率
 def cal_prob(d: int):
-    global forward_length, prob_up, prob_down
+    global forward_length, prob_up, prob_down, index_max_corr
     forward_length = TARGET_WINDOWS[d]
     index_max_corr = [
         int(ans_groups.get_group(j + 1).idxmax()[0]) for j in range(ans_groups.size().size)
     ]
     # 如果计算概率时越界，则把该条记录去除，并提出警示
-    while (index_max_corr[-1]+len_now+forward_length+499) > len_t:
+    while (index_max_corr[-1]+len_now+forward_length) > len_t:
         print("[Warning]: Not enough length for forward-looking, will drop the record of", t.index[index_max_corr[-1]])
         index_max_corr = index_max_corr[:-1]
     prob_up = sum(t[i]*1.05 < t[i + len_now + forward_length]
@@ -102,7 +102,6 @@ def cal_prob(d: int):
     return prob_up, prob_mid, prob_down
 
 cal_prob(1)
-index_max_corr = [int(ans_groups.get_group(j+1).idxmax()[0]) for j in range(ans_groups.size().size)]
 
 if prob_up > prob_down:
     for i in index_max_corr:

@@ -35,7 +35,8 @@ try:
     import talib
 except ImportError as e:
     print(e)
-
+plt.rcParams["font.sans-serif"] = ["SimHei"]
+plt.rcParams["axes.unicode_minus"] = False
 
 class Backtest():
     """
@@ -642,10 +643,6 @@ class Backtest():
     @classmethod
     def generate_profit_curve(self, data: pd.DataFrame, 
                             columns=["accumulated_profit","confirmed_profit"]):
-        import matplotlib.pyplot as plt
-        plt.rcParams["font.sans-serif"] = ["SimHei"]
-        plt.rcParams["axes.unicode_minus"] = False
-
         print("正在生成图像...")
         fig = plt.figure()
         fig.set_size_inches(12, 12)

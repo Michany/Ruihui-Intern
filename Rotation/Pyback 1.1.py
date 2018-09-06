@@ -6,8 +6,11 @@ Main Features
 -------------
 Here are something this backtest framework can do:
 
-- 选ROE始终>15且比较稳定，ROE位居行业内首位
+- 选ROE始终>20且比较稳定，ROE位居行业内首位
 
+- 整个程序依旧比较慢
+
+- 程序每次运行的结果都会不一样
 
 Updated in 2018/9/3
 """
@@ -22,7 +25,8 @@ try:
     import talib
 except ImportError as e:
     print(e)
-
+plt.rcParams["font.sans-serif"] = ["SimHei"]
+plt.rcParams["axes.unicode_minus"] = False
 #%%
 class Backtest():
     """
@@ -233,8 +237,12 @@ class Backtest():
                     print("Technical indicator \'{}\' will not be calculated.")
                     return
 
+    # %% 选股
     def choosing(self):
-        import pymssql
+        try:
+            import pymssql
+        except:
+            raise Exception("请安装所需包: 打开命令提示符cmd，输入 pip install pymssql 安装")
         conn=pymssql.connect(server='192.168.0.28',port=1433,user='sa',password='abc123',database='rawdata',charset='utf8') 
         SQL='''
         SELECT b.code, b.weight, a.S_FA_ROE_TTM, a.ANN_DT, a.s_fa_totalequity_mrq
@@ -246,8 +254,10 @@ class Backtest():
         data = data.astype({'ANN_DT':'datetime64'})
         data.drop_duplicates(subset=['code','ANN_DT'],inplace=True)
         # data.set_index('ANN_DT',inplace=True)
-
-        import tushare as ts
+        try:
+            import tushare as ts
+        except:
+            raise Exception("请安装所需包: 打开命令提示符cmd，输入 pip install tushare 安装")
         industry=ts.get_industry_classified()
         industry['code']=industry.code.apply(lambda x:(x+'.SH') if x.startswith('6') else (x+'.SZ'))
         print("Data OK\n正在选股...")
@@ -257,28 +267,32 @@ class Backtest():
         roe=data.merge(industry, on='code')
         roe.set_index('ANN_DT',inplace=True)
         # TODO ROE>15,ROE稳定,市值排名前50%或者大于10亿
-        # roe.quantile(0.5)
         g = roe.groupby('code')
         roe_strong=pd.DataFrame()
         roe_stable=pd.DataFrame()
         roe_mean=pd.DataFrame()
-        for firm in g:
+        for firm in g: #利用rolling的方法加快速度，设定window=1000，min_periods=0保证达到累计平均的效果
             print("正在计算 {}".format(firm[0]),end='\r')
-            for day in firm[1].index:
-                temp = firm[1].S_FA_ROE_TTM.loc[:day]
-                roe_stable.loc[day,firm[0]]=temp.std()<7
-                roe_mean.loc[day,firm[0]]=temp.mean()
-        roe_strong = roe_mean>15
+            temp_rolling = firm[1].S_FA_ROE_TTM.rolling(1000,min_periods=0)
+            temp=temp_rolling.mean()
+            temp.name = firm[0]
+            roe_mean=pd.concat([roe_mean,pd.DataFrame(temp)],sort=False,axis=1)
+            temp=temp_rolling.std()<7
+            temp.name = firm[0]
+            roe_stable=pd.concat([roe_stable,pd.DataFrame(temp)],sort=False,axis=1)
+
+        roe_strong = roe_mean>20
         choice = roe_strong * roe_stable
         choice.sort_index(inplace=True)
-        choice.fillna(method='ffill',inplace=True) # 用最新的roe数据，直至新的roe数据出现，所以用ffill
         choice = choice[self.START_DATE:self.END_DATE] #时间截断
+        choice.fillna(method='ffill',inplace=True) # 用最新的roe数据，直至新的roe数据出现，所以用ffill
         roe_mean=roe_mean.sort_index().fillna(method='ffill')
-        # TODO 行业内排名第一
+
         行业对照表 = roe.drop_duplicates(subset=['code','c_name'])
         行业对照表=行业对照表.drop(columns=['weight','S_FA_ROE_TTM','s_fa_totalequity_mrq','name']).set_index('code')
         self.行业对照表=行业对照表
 
+        # 根据行业来选
         industry_choice=pd.DataFrame(index=choice.index,columns=set(行业对照表.c_name))
         industry_choice.fillna(0, inplace=True)
 
@@ -286,16 +300,19 @@ class Backtest():
             sector=行业对照表.loc[symbol][0]
             industry_choice.loc[choice[symbol][choice[symbol].isin([1])].index, sector]=\
                 industry_choice.loc[choice[symbol][choice[symbol].isin([1])].index, sector].apply(
-                    lambda x:x+[symbol,] if isinstance(x,list) else [symbol,])
-        def compare_then_place(existSymbols, day):
+                    lambda x:x+','+symbol if isinstance(x,str) else symbol)
+        # 每个行业选取最优的
+        def compare_then_place(exist, day):
             temp_max=-20
-            if existSymbols==0:
+            if exist==0:
                 return 0
+            existSymbols = exist.split(',')
             for existSymbol in existSymbols:
                 if roe_mean.loc[day,existSymbol] > temp_max:
                     temp_max = roe_mean.loc[day,existSymbol]
                     max_symbol = existSymbol
             return max_symbol
+        
         for day in industry_choice.index:
             industry_choice.loc[day]=industry_choice.loc[day].T.apply(compare_then_place,args=(day,))
         self.industry_choice=industry_choice
@@ -309,9 +326,9 @@ class Backtest():
             s=s.union(set(industry_choice[sector]))
         s.remove(0)
         self.chosed_pool = s
-
+# %% 策略部分 分配仓位
     def timing(self):
-        # %% 策略部分 分配仓位
+
         # 买入时机
         is_entry_time = np.square(self._sigma * 1) - self._mu > -0.3
         percent_chg = (self.price / self.price.shift(int(self.DURATION / 2))) - 1
@@ -376,8 +393,8 @@ class Backtest():
 
             self.ProfitTrailing_Already = pd.DataFrame(index=self.Profit_Ceiling,
                                                        columns=self.POOL+list(self.industry_choice.columns)) # 加sector
+            self.ProfitTrailing_Already.loc[self.Profit_Ceiling[0],:] = True
             self.ProfitTrailing_Already.fillna(False, inplace=True)
-            self.ProfitTrailing_Already.loc[1,:] = True
 
             self.cash_balance_today = 0
             self.cash_balance = pd.DataFrame(columns=['cash_balance'])
@@ -510,7 +527,7 @@ class Backtest():
                             # 如果是全部止盈(i=0)，则将之前记录清空
                             self.ProfitTrailing_Already.loc[:,symbol] = False
                             # 将sector设置为已经止盈，接下来可以考虑开始定投新的股票
-                            self.ProfitTrailing_Already.loc[1,sector] = True
+                            self.ProfitTrailing_Already.loc[self.Profit_Ceiling[0],sector] = True
                         else: 
                             # 如果是部分止盈，把已经全部止盈的条件改为False
                             self.ProfitTrailing_Already.loc[self.Profit_Ceiling[0],symbol] = False
@@ -533,7 +550,7 @@ class Backtest():
                             }
                             total_share_required += self.pos.loc[day, symbol]
                         
-                        if symbol == self.industry_choice.loc[day, sector] and self.ProfitTrailing_Already.loc[1,sector]:#该行业原先定投的股票已经全部止盈，而且新买入的股票是roe的天选之子
+                        if symbol == self.industry_choice.loc[day, sector] and self.ProfitTrailing_Already.loc[self.Profit_Ceiling[0],sector]:#该行业原先定投的股票已经全部止盈，而且新买入的股票是roe的天选之子
                             BUY_SIGNALS[symbol]["选股开仓"] = {
                                 "symbol": symbol,
                                 "amount": self.pos.loc[day, symbol],
@@ -541,32 +558,35 @@ class Backtest():
                             }
                             total_share_required += self.pos.loc[day, symbol]
                             # 买入后，重置这个变量，说明该行业、该股票还未全部止盈
-                            self.ProfitTrailing_Already.loc[1,sector] = False
-                            self.ProfitTrailing_Already.loc[1,symbol] = False
+                            self.ProfitTrailing_Already.loc[self.Profit_Ceiling[0],[sector,symbol]] = False
                     
             # 将买入的总金额调整至每期固定投入 INITIAL_CAPITAL
             for symbol in self.POOL:
-                try:
-                    BUY_SIGNALS[symbol]["定投买入"]["amount"] *= (
-                        (self.INITIAL_CAPITAL)/ total_share_required / price_today[symbol])
-                except:
-                    pass
+                if len(BUY_SIGNALS[symbol])==0: continue
+                # 已经 debug “选股开仓”的信号总金额没有规整到1000
+                for signal in BUY_SIGNALS[symbol]:
+                    BUY_SIGNALS[symbol][signal]["amount"] = (
+                        round( BUY_SIGNALS[symbol][signal]["amount"]/ price_today[symbol]/100, 2) * 10000
+                        )
+                    
             return BUY_SIGNALS, SELL_SIGNALS
 
-        # 按天回测正式开始
-        init_run()
+        init_run() # 初始化变量
         t0 = time.time()
         self.industry_choice=self.industry_choice.reindex(index=self.price.index, method='ffill')
 
+        # 按天回测正式开始
         for day in self.price.index[self.DURATION:]:
             self.balance_today, self.share_today = {"date": day}, {"date": day}
+            # 每次循环都检查一次是否有交易信号
             buy_signals, sell_signals = Check_Signal(self.price.loc[day])
-            # print(buy_signals, sell_signals)
+            # print(buy_signals, sell_signals)  
             for symbol in self.POOL:
                 for signal in sell_signals[symbol]:
                     Sell(**sell_signals[symbol][signal])
                 for signal in buy_signals[symbol]:
                     Buy(**buy_signals[symbol][signal])
+                # 如果均无买卖信号
                 if (len(buy_signals.get(symbol, {})) == 0 and len(sell_signals.get(symbol, {})) == 0):
                     record_daily_profit(day, symbol)
                 self.average_cost.loc[day, symbol] = (self.平均成本[symbol] if self.平均成本[symbol] < 10000 else np.nan)
@@ -582,7 +602,7 @@ class Backtest():
         tpy = t1 - t0
         print("\n回测已完成，用时 %5.3f 秒" % tpy)
 
-        
+
         self.share = pd.DataFrame(self.share).set_index("date")
         self.capital_balance = pd.DataFrame(self.capital_balance).set_index("date")
 
@@ -649,7 +669,7 @@ class Backtest():
         print("----  逐年收益及回撤  ----")
         print("年份\t收益\t\t回撤\t起止时间")
         for year in self.yearly_drawdown:
-            print("{}\t{:.2f}\t\t{:.2%}\t{} ~ {}".format(year, self.yearly_return[year], *self.yearly_drawdown[year]))
+            print("{}\t{:.2f}\t{:.2%}\t{} ~ {}".format(year, self.yearly_return[year], *self.yearly_drawdown[year]))
         print("------  参数设定  ------")
         self.info
 
@@ -729,10 +749,6 @@ class Backtest():
     @classmethod
     def generate_profit_curve(self, data: pd.DataFrame, 
                             columns=["accumulated_profit","confirmed_profit"]):
-        import matplotlib.pyplot as plt
-        plt.rcParams["font.sans-serif"] = ["SimHei"]
-        plt.rcParams["axes.unicode_minus"] = False
-
         print("正在生成图像...")
         fig = plt.figure()
         fig.set_size_inches(12, 12)
@@ -800,18 +816,18 @@ class Optimizer():
 
 #%%
 if __name__ == "__main__":
-    pool = ["000016.SH","000905.SH","000009.SH","000991.SH","000935.SH","000036.SH"]
+    # pool = ["000016.SH","000905.SH","000009.SH","000991.SH","000935.SH","000036.SH"]
     # pool = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
     # pool = ["000036.SH"]
     test = Backtest(pool=[], type='stock', duration = 250,
                     start_date="20070201", end_date="20180829", 
                     load_data=False,
-                    profit_ceiling=[0.6, 0.5, 0.4, 0.3, 0.2], 
-                    trailing_percentage=[1,0.8, 0.6, 0.4, 0.2])
+                    profit_ceiling=[0.6, 0.2], 
+                    trailing_percentage=[1, 0.2])
                     # profit_ceiling=[0.5], trailing_percentage=[1])
     test.choosing()
     test.POOL = list(test.chosed_pool) #包含所有选择的股票
-    test.init_data(type=1) # 获取全部的历史数据（冗余）
+    test.init_data(type=1) # 获取全部的历史数据（有冗余）
     # t = pd.read_excel(r"C:\Users\\meiconte\Documents\RH\Historical Data\指数价2007.xlsx",
     #                   dtype={'Date': 'datetime64'})
     # price = t.set_index("Date")
