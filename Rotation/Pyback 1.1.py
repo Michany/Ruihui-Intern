@@ -72,7 +72,7 @@ class Backtest():
 
         initial_capital = arg.pop("initial_capital", None)
         if initial_capital is None:
-            self.INITIAL_CAPITAL = 1000
+            self.INITIAL_CAPITAL = 10000
         elif initial_capital <= 0:
             raise ValueError("Initial capital must be greater than zero.")
         else:
@@ -256,7 +256,7 @@ class Backtest():
         # data.set_index('ANN_DT',inplace=True)
 
         industry=pd.read_sql('SELECT * FROM AShareIndustriesName',conn)
-        
+
         print("Data OK\n正在选股...")
 
         t0=time.time()
