@@ -16,10 +16,10 @@ STOCK_POOL = ['000016.SH','000905.SH','000009.SH','000991.SH','000935.SH','00003
 # STOCK_POOL = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH','601888.SH']
 # STOCK_POOL = ["600104.SH"]
 START_DATE = "2008-01-01"
-END_DATE = "2018-08-28"
+END_DATE = "2018-09-07"
 INITIAL_CAPITAL = 1000
 # CAPITAL = INITIAL_CAPITAL / 3
-DURATION = 10 * 5
+DURATION = 250
 Profit_Ceiling = [0.4, 0.2] #止盈线
 Trailing_Percentage = 0.2 #优先止盈百分比
 
@@ -48,7 +48,7 @@ mu = (price / price.shift(DURATION)).apply(np.log) + 0.5 * np.sqrt(sigma)
 
 # %% 策略部分 分配仓位
 # 买入时机
-is_entry_time = np.square(sigma * 1) - mu > -0.3
+is_entry_time = np.square(sigma * 1) - mu > 0
 percent_chg = (price / price.shift(int(DURATION/2))) - 1
 
 # 赋权重(仓位)
@@ -59,7 +59,7 @@ for index in STOCK_POOL:
     pos *= is_entry_time
 # 仓位时间调整
 for day in pos.index:
-    if day.dayofweek != 4:
+    if day.dayofweek != 3:
         pos.loc[day] = np.nan
 pos = pos.reindex(index=price.index).fillna(0)
 #此时pos实际上是买入的信号，而不是实时仓位

@@ -254,12 +254,9 @@ class Backtest():
         data = data.astype({'ANN_DT':'datetime64'})
         data.drop_duplicates(subset=['code','ANN_DT'],inplace=True)
         # data.set_index('ANN_DT',inplace=True)
-        try:
-            import tushare as ts
-        except:
-            raise Exception("请安装所需包: 打开命令提示符cmd，输入 pip install tushare 安装")
-        industry=ts.get_industry_classified()
-        industry['code']=industry.code.apply(lambda x:(x+'.SH') if x.startswith('6') else (x+'.SZ'))
+
+        industry=pd.read_sql('SELECT * FROM AShareIndustriesName',conn)
+        
         print("Data OK\n正在选股...")
 
         t0=time.time()
