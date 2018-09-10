@@ -297,13 +297,13 @@ class Backtest():
             sector=行业对照表.loc[symbol][0]
             industry_choice.loc[choice[symbol][choice[symbol].isin([1])].index, sector]=\
                 industry_choice.loc[choice[symbol][choice[symbol].isin([1])].index, sector].apply(
-                    lambda x:x+','+symbol if isinstance(x,str) else symbol)
+                    lambda x:x+[symbol,] if isinstance(x,list) else [symbol,])
         # 每个行业选取最优的
         def compare_then_place(exist, day):
             temp_max=-20
             if exist==0:
                 return 0
-            existSymbols = exist.split(',')
+            existSymbols = exist
             for existSymbol in existSymbols:
                 if roe_mean.loc[day,existSymbol] > temp_max:
                     temp_max = roe_mean.loc[day,existSymbol]
