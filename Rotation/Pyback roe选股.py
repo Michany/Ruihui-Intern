@@ -183,7 +183,7 @@ class Backtest():
         else:
             raise ValueError("Unable to handle the inputted position data of type {}, must be <pd.DataFrame>.".format(type(pos_DataFrame).__name__))            
     
-    @property
+    @property 
     def info(self):
         '''
         If you want to see the parameters of your current backtest, 
