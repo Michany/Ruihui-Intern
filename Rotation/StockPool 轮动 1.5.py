@@ -3,6 +3,7 @@ Based on Version 1.4
 --------------------
 - 读取数据库价格
 - 指数/股票均可读取
+- 查看历史投入金额，位于money_invest变量中
 """
 import pandas as pd
 import numpy as np
@@ -16,7 +17,7 @@ STOCK_POOL = ['000016.SH','000905.SH','000009.SH','000991.SH','000935.SH','00003
 # STOCK_POOL = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH','601888.SH']
 # STOCK_POOL = ["600104.SH"]
 START_DATE = "2008-01-01"
-END_DATE = "2018-09-07"
+END_DATE = "2018-09-13"
 INITIAL_CAPITAL = 1000
 # CAPITAL = INITIAL_CAPITAL / 3
 DURATION = 250
@@ -218,6 +219,7 @@ t0 = time.time()
 for day in price.index[DURATION:]:
     balance_today, share_today = {"date": day}, {"date": day}
     buy_signals, sell_signals = Check_Signal()
+    
     # print(buy_signals, sell_signals)
     for symbol in STOCK_POOL: 
         for signal in sell_signals[symbol]:
@@ -334,3 +336,10 @@ def generate_profit_curve(ans: pd.DataFrame, column="accumulated_profit"):
 
 generate_profit_curve(profit_summary)
 plt.show()
+
+#%% 最新指导
+print("最新定投金额指导：")
+money_invest = (pos.T/pos.T.sum()*1000).T
+latest_guidance = money_invest.drop_duplicates().iloc[-1]
+
+print(latest_guidance.round(0))

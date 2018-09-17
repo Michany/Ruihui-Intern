@@ -51,8 +51,8 @@ except:#如果没有，则调取公司数据库获取
     t.rename(columns={'sclose':'close'}, inplace=True)
 t = t.close
 
-now = ts.get_hist_data(code=INDEX_CODE, start=None, end=None,
-                       ktype='5', retry_count=3, pause=0.001)
+now = ts.get_k_data(code=INDEX_CODE, start=None, end=None,
+                    ktype='5', retry_count=3, pause=0.001)
 now.sort_values(by='date', ascending=True, inplace=True)
 
 print('[Processing]: Data prepared!')

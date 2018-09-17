@@ -263,7 +263,7 @@ class Backtest():
 
         # 仓位时间调整
         for day in pos.index:
-            if day.dayofweek != 4:
+            if day.dayofweek != 3:
                 pos.loc[day] = np.nan
         pos = pos.reindex(index=self.price.index).fillna(0)
         # 此时pos实际上是买入的信号，而不是实时仓位
@@ -568,6 +568,12 @@ class Backtest():
         self.info
 
         print("="*25)
+        
+        #%% 最新指导
+        print("最新定投金额指导：")
+        money_invest = (self.pos.T/self.pos.T.sum()*1000).T
+        latest_guidance = money_invest.drop_duplicates().iloc[-1]
+        print(latest_guidance.round(0))
         return profit_summary
 
     @property
