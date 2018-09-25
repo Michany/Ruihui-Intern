@@ -245,12 +245,13 @@ class Backtest():
             raise Exception("请安装所需包: 打开命令提示符cmd，输入 pip install pymssql 安装")
         conn=pymssql.connect(server='192.168.0.28',port=1433,user='sa',password='abc123',database='rawdata',charset='utf8') 
         SQL='''
-        SELECT b.code, b.weight, a.S_FA_ROE_TTM, a.ANN_DT, a.s_fa_totalequity_mrq
+        SELECT b.code, b.weight, a.S_FA_ROE_TTM, a.ANN_DT
         FROM AShareTTMHis as a, [沪深300成分权重] as b
         where b.[Date] BETWEEN '2018-07-01' and '2018-07-03'
         and a.S_INFO_WINDCODE = b.code 
-        ORDER BY b.code'''
+        ORDER BY b.code'''#, a.s_fa_totalequity_mrq
         data = pd.read_sql(SQL,conn)
+        data.dropna(subset=['S_FA_ROE_TTM'], inplace=True)
         data.drop_duplicates(subset=['code','ANN_DT'],inplace=True)
         data.dropna(subset=['ANN_DT'], inplace=True)
         data.ANN_DT = data.ANN_DT.apply(lambda s:s[:4]+'-'+s[4:6]+'-'+s[6:])
@@ -273,6 +274,9 @@ class Backtest():
         roe_mean=pd.DataFrame()
         for firm in g: #利用rolling的方法加快速度，设定window=1000，min_periods=0保证达到累计平均的效果
             print("正在计算 {}".format(firm[0]),end='\r')
+            firm[1].sort_index(inplace=True)
+            #print(firm[1])
+            #break
             temp_rolling = firm[1].S_FA_ROE_TTM.rolling(1000,min_periods=0)
             temp=temp_rolling.mean()
             temp.name = firm[0]
@@ -289,7 +293,7 @@ class Backtest():
         roe_mean=roe_mean.sort_index().fillna(method='ffill')
 
         行业对照表 = roe.drop_duplicates(subset=['code','c_name'])
-        行业对照表=行业对照表.drop(columns=['weight','S_FA_ROE_TTM','s_fa_totalequity_mrq','name']).set_index('code')
+        行业对照表=行业对照表.drop(columns=['weight','S_FA_ROE_TTM','name']).set_index('code')
         self.行业对照表=行业对照表
 
         # 根据行业来选
@@ -828,11 +832,14 @@ if __name__ == "__main__":
                     # profit_ceiling=[0.5], trailing_percentage=[1])
     test.choosing()
     test.POOL = list(test.chosed_pool) #包含所有选择的股票
-    test.init_data(type=1) # 获取全部的历史数据（有冗余）
-    # t = pd.read_excel(r"C:\Users\\meiconte\Documents\RH\Historical Data\指数价2007.xlsx",
-    #                   dtype={'Date': 'datetime64'})
-    # price = t.set_index("Date")
-    # test.price = price
-    test.run(mute=True)
-    Backtest.generate_profit_curve(test.summarize(write_excel=True))
-    #Optimizer.pool_optimize(backtest=test,pool=test.POOL)
+    print(test.POOL)
+    if False:
+        
+        test.init_data(type=1) # 获取全部的历史数据（有冗余）
+        # t = pd.read_excel(r"C:\Users\\meiconte\Documents\RH\Historical Data\指数价2007.xlsx",
+        #                   dtype={'Date': 'datetime64'})
+        # price = t.set_index("Date")
+        # test.price = price
+        test.run(mute=True)
+        Backtest.generate_profit_curve(test.summarize(write_excel=True))
+        #Optimizer.pool_optimize(backtest=test,pool=test.POOL)

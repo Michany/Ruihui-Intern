@@ -231,7 +231,7 @@ class Backtest():
         分母=abs(self.RSI.T-self.RSI.T.mean()).sum()
         self.RSI_normalized = ((self.RSI.T-self.RSI.T.mean())/分母).T
         self.RSI_normalized.dropna(inplace=True)
-        del test.RSI
+        del self.RSI
 
         # 赋权重(仓位)
         pos = self.RSI_normalized
@@ -403,7 +403,7 @@ class Backtest():
             BUY_SIGNALS, SELL_SIGNALS = dict(), dict()
             for symbol in self.POOL:
                 SELL_SIGNALS[symbol], BUY_SIGNALS[symbol] = {}, {}
-                print(self.pos.loc[day, symbol],self.share[-1][symbol])
+                print(symbol,self.pos.loc[day, symbol],self.share[-1][symbol])
                 if self.pos.loc[day, symbol] < self.share[-1][symbol]:
                     SELL_SIGNALS[symbol]["按周调仓 卖出"] = {
                         "symbol": symbol,
@@ -649,6 +649,6 @@ if __name__ == "__main__":
     t = pd.read_excel(r"C:\Users\\meiconte\Documents\RH\Historical Data\股价2007.xlsx",
                       dtype={'Date': 'datetime64'})
     price = t.set_index("Date")
-    test.price = price
+    test.price = price['2010':]
     test.run(mute=False)
     Backtest.generate_profit_curve(test.summarize())
