@@ -162,7 +162,7 @@ label = np.vectorize(label)
 
 
 def create_ta_data(stock):
-
+    print(stock)
     if stock in stock_pool:
         SS = rd.get_stock_day(stock, "2010-01-01", "2019-01-01", "1D")
         SS = SS / SS.iloc[0]
@@ -319,7 +319,7 @@ layre 6:   Linear(概率输出)     10 feature   ->   5
 
 """
 
-
+#%%
 autoencoder = AutoEncoder(62, 32)
 autoencoder = autoencoder.cuda()
 
@@ -487,7 +487,9 @@ opt = optim.Adam(mylstm.parameters(), lr=0.01)
 
 collect = []
 tim.tic()
+print("start training...")
 for epoch in range(501):
+    print('epoch',epoch)
     total_loss = 0
     for feature, target in train_loader:
         if feature.size()[0] != BATCH_SIZE:

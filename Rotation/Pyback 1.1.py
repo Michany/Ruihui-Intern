@@ -563,8 +563,9 @@ class Backtest():
                 # 已经 debug “选股开仓”的信号总金额没有规整到1000
                 for signal in BUY_SIGNALS[symbol]:
                     BUY_SIGNALS[symbol][signal]["amount"] = (
-                        round( BUY_SIGNALS[symbol][signal]["amount"]/ price_today[symbol]/100, 2) * 10000
-                        )
+                        (self.INITIAL_CAPITAL)/ total_share_required / price_today[symbol])                        
+                        # round( BUY_SIGNALS[symbol][signal]["amount"]/ price_today[symbol]/100, 2) * 100000
+                        # )
                     
             return BUY_SIGNALS, SELL_SIGNALS
 
@@ -818,7 +819,7 @@ if __name__ == "__main__":
     # pool = ["000036.SH"]
     test = Backtest(pool=[], type='stock', duration = 250,
                     start_date="20070201", end_date="20180829", 
-                    load_data=False,
+                    load_data=False,initial_capital = 1000,
                     profit_ceiling=[0.6, 0.2], 
                     trailing_percentage=[1, 0.2])
                     # profit_ceiling=[0.5], trailing_percentage=[1])
