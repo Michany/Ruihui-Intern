@@ -14,7 +14,9 @@ Here are something this backtest framework can do:
 
 - 采用季度数据
 
-Updated in 2018/9/6
+- 程序最后调用 latest_weigt()，输出最新指导
+
+Updated in 2018/9/28
 """
 import pandas as pd
 import numpy as np
@@ -245,13 +247,12 @@ class Backtest():
             import pymssql
         except:
             raise Exception("请安装所需包: 打开命令提示符cmd，输入 pip install pymssql 安装")
-        conn=pymssql.connect(server='192.168.0.28',port=1433,user='sa',password='abc123',database='rawdata',charset='utf8') 
+        conn=pymssql.connect(server='192.168.0.28',port=1433,user='sa',password='abc123',database='WIND') 
         SQL='''
         SELECT b.code, a.S_FA_ROE_TTM, a.ANN_DT, a.REPORT_PERIOD
-        FROM AShareTTMHis as a, [沪深300成分权重] as b
+        FROM AShareTTMHis as a, HS300COMPWEIGHT as b
         where b.[Date] BETWEEN '2018-07-01' and '2018-07-03'
         and a.S_INFO_WINDCODE = b.code 
-        
         ORDER BY b.code, a.REPORT_PERIOD'''#, a.s_fa_totalequity_mrq    and a.REPORT_PERIOD LIKE '____1231'
         data = pd.read_sql(SQL,conn)
         data.dropna(subset=['S_FA_ROE_TTM'], inplace=True)
@@ -289,7 +290,7 @@ class Backtest():
             temp.name = firm[0]
             roe_stable=pd.concat([roe_stable,pd.DataFrame(temp)],sort=False,axis=1)
 
-        roe_strong = roe_mean>15
+        roe_strong = roe_mean>20
         choice = roe_strong * roe_stable
         choice.sort_index(inplace=True)
         choice = choice[self.START_DATE:self.END_DATE] #时间截断
@@ -334,7 +335,7 @@ class Backtest():
             s=s.union(set(industry_choice[sector]))
         s.remove(0)
         self.chosed_pool = s
-# %% 策略部分 分配仓位
+    # %% 策略部分 分配仓位
     def timing(self):
 
         # 买入时机
@@ -350,7 +351,7 @@ class Backtest():
 
         # 仓位时间调整
         for day in pos.index:
-            if day.dayofweek != 4:
+            if day.dayofweek != 3:
                 pos.loc[day] = np.nan
         pos = pos.reindex(index=self.price.index).fillna(0)
         # 此时pos实际上是买入的信号，而不是实时仓位
@@ -797,6 +798,11 @@ class Backtest():
         plt.grid()
         plt.show()
 
+    def latest_weight(self):
+        latest_pos = self.pos.drop_duplicates().iloc[-1]
+        chosed_stock = self.industry_choice.iloc[-1]
+        return latest_pos[chosed_stock].dropna()
+
 #%%
 # TODO Parameter Optimizer
 class Optimizer():
@@ -828,7 +834,7 @@ if __name__ == "__main__":
     # pool = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH', '600519.SH', '601888.SH']
     # pool = ["000036.SH"]
     test = Backtest(pool=[], type='stock', duration = 50,
-                    start_date="20070201", end_date="20180829", 
+                    start_date="20070201", end_date="20180927", 
                     load_data=False,
                     initial_capital = 10000, 
                     profit_ceiling=[0.6, 0.4, 0.2], 
@@ -838,9 +844,13 @@ if __name__ == "__main__":
     test.POOL = list(test.chosed_pool) #包含所有选择的股票
     test.POOL.sort()
     print(test.POOL)
+    
+    test.init_data(type=1) # 获取全部的历史数据（有冗余）
+
+    
     if True:
-        
-        test.init_data(type=1) # 获取全部的历史数据（有冗余）
         test.run(mute=True)
         Backtest.generate_profit_curve(test.summarize(write_excel=False))
         #Optimizer.pool_optimize(backtest=test,pool=test.POOL)
+    
+    test.latest_weight()

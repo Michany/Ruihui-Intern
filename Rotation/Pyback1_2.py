@@ -231,7 +231,7 @@ class Backtest():
         分母=abs(self.RSI.T-self.RSI.T.mean()).sum()
         self.RSI_normalized = ((self.RSI.T-self.RSI.T.mean())/分母).T
         self.RSI_normalized.fillna(0,inplace=True)
-        del self.RSI
+        self.RSI
 
         # 赋权重(仓位)
         pos = self.RSI_normalized

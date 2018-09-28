@@ -14,11 +14,11 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as Data
 
-import sys
+# import sys
 
-local_path = "C://Users//Administrator/Desktop/"
-if local_path not in sys.path:
-    sys.path.append(local_path)
+# local_path = "C://Users//Administrator/Desktop/"
+# if local_path not in sys.path:
+#     sys.path.append(local_path)
 
 import data_reader as rd
 import tictoc as tim
@@ -162,7 +162,7 @@ label = np.vectorize(label)
 
 
 def create_ta_data(stock):
-    print(stock)
+    print("Processing", stock)
     if stock in stock_pool:
         SS = rd.get_stock_day(stock, "2010-01-01", "2019-01-01", "1D")
         SS = SS / SS.iloc[0]
@@ -259,16 +259,19 @@ for i in stock_pool:
     ta_data = create_ta_data(i)
     ta_data = pd.concat([benchmark_data, ta_data], axis=1)
     ta_data = ta_data.dropna()
-    features = ta_data.iloc[:, :-2]
-    features = (features - features.cummin()) / (features.cummax() - features.cummin())
+    features = ta_data.iloc[:, :-2] #去掉倒数两列，分别是 label 和 Return
+    features = (features - features.cummin()) / (features.cummax() - features.cummin()) # 归一化所有 features
     ta_data.iloc[:, :-2] = features
     ta_data = ta_data.dropna()
     train_dict[i] = ta_data[:TRAIN_SIZE]
+    # TODO 为什么train_dict和predict_dict有部分重合？
     predict_dict[i] = ta_data.iloc[TRAIN_SIZE - TIME_SERIES :]
 
 
 def train_data_collecter(train_dict):
-
+    '''
+    将输入的 DataFrame 数据打包转换为 tensor 对象
+    '''
     train_xx = []
     train_y = []
 
@@ -352,7 +355,7 @@ def AE_featrure():
             tim.tic()
     return autoencoder.encoder
 
-
+#等待AE_feature学习完毕以后，把学习的结果抽取出来，作为压缩原始数据维度的一种方式
 decoded_layer = AE_featrure()
 
 
@@ -401,7 +404,7 @@ def do_predict():
 
 def do_train():
     val = [1]
-    for i in range(len(time_data) - 1):
+    for i in range(len(time_data) - 1):#每天循环
         position_cnt = 0
         position_list = []
         return_list = []
@@ -441,7 +444,7 @@ def do_train():
         val.append(val[-1] * ((return_list * position_list).sum()))
     return val
 
-
+#%%
 def eval_train():
     cnt = 0
     for feature, target in train_loader:
@@ -449,11 +452,12 @@ def eval_train():
             continue
         mylstm.hidden = mylstm.initHidden()
         feature = feature.float().cuda()
-        # feature = decoded_layer(feature)
+        feature = decoded_layer(feature)
         # reduced_feature = decoded_layer(feature)
         target = target.long().cuda()
         out = mylstm(feature)
         p = out.cpu().data.numpy().argmax(axis=1)
+        # print(p) #发现p全都是[1, 1, ..., 1]
         target = target.cpu().data.numpy()
         for i in range(len(p)):
             if p[i] == target[i]:
@@ -468,11 +472,12 @@ def eval_predict():
             continue
         mylstm.hidden = mylstm.initHidden()
         feature = feature.float().cuda()
-        # feature = decoded_layer(feature)
+        feature = decoded_layer(feature)
         # reduced_feature = decoded_layer(feature)
         target = target.long().cuda()
         out = mylstm(feature)
         p = out.cpu().data.numpy().argmax(axis=1)
+        print(p) #发现p全都是[1, 1, ..., 1]
         target = target.cpu().data.numpy()
         for i in range(len(p)):
             if p[i] == target[i]:
@@ -480,7 +485,7 @@ def eval_predict():
     print(cnt / len(predict_loader) / 200)
 
 
-mylstm = LSTM(62, 62, 2)
+mylstm = LSTM(32, 32, 1)
 mylstm = mylstm.cuda()
 loss_fn = nn.CrossEntropyLoss().float().cuda()
 opt = optim.Adam(mylstm.parameters(), lr=0.01)
@@ -496,7 +501,7 @@ for epoch in range(501):
             continue
         mylstm.hidden = mylstm.initHidden()
         feature = feature.float().cuda()
-        # feature = decoded_layer(feature)
+        feature = decoded_layer(feature)
         target = target.long().cuda()
         out = mylstm(feature)
         loss = 0
@@ -513,12 +518,7 @@ for epoch in range(501):
         eval_predict()
 
     if epoch % 10 == 0:
-        print(
-            "cycle "
-            + str(epoch)
-            + " done. The mean loss is "
-            + str(total_loss / len(train_loader) / BATCH_SIZE)
-        )
+        print("cycle " + str(epoch) + " done. The mean loss is " + str(total_loss / len(train_loader) / BATCH_SIZE))
         if total_loss / len(train_loader) / BATCH_SIZE < 0.0025:
             break
         tim.toc()
