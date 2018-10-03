@@ -21,7 +21,8 @@ price = get_muti_close_day(pool, START_DATE, END_DATE)
 price.fillna(method="ffill", inplace=True)
 print("Historical Data Loaded!")
 
-RSI = price.apply(getattr(talib, 'RSI'), args=(12,))
+#%%
+RSI = price.apply(getattr(talib, 'RSI'), args=(20,))
 RSI=RSI.replace(0,np.nan)
 分母=abs(RSI.T-RSI.T.mean()).sum()
 RSI_normalized = ((RSI.T-RSI.T.mean())/分母).T
@@ -29,12 +30,12 @@ RSI_normalized.fillna(0,inplace=True)
 pos = RSI_normalized
 
 # share记录了实时的仓位信息
-share = pos[pos.index.dayofweek == 4]
+share = pos[pos.index.dayofweek == 1]
 share = share.reindex(pos.index)
 share = share.fillna(method='ffill')
 
 price_pct_change = price.pct_change().replace(np.inf,0)
-daily_pnl = price_pct_change * share
+daily_pnl = price_pct_change.shift(-1) * share
 #分别绘制复利和单利
 (daily_pnl.T.sum()+1).cumprod().plot()
 (daily_pnl.T.sum().cumsum()+1).plot()
