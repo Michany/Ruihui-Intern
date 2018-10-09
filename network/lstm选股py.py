@@ -313,8 +313,8 @@ predict_loader, __ = train_data_collecter(predict_dict)
 """
 LSTM v1.1
 
-layer 1：  Linear（模仿PCA）    39  features ->  15 features 
-layer 2:   LSTM（时间序列学习）  50  time series -> f 
+layer 1：  Linear（模仿PCA）    62  features ->  32 features 
+layer 2:   LSTM（时间序列学习）  150  time series -> f 
 layer 3:   LSTM（第二层）         
 layer 4：  Linear（模仿PCA）    15  features ->   10 features
 layer 5:   Dropout(控制过拟合)  50%
