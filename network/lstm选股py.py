@@ -400,8 +400,8 @@ def eval_predict():
                 cnt += 1
     print(cnt / len(predict_loader) / 200)
 
-
-mylstm = LSTM(32, 32, 2)
+#%%
+mylstm = LSTM(62, 62, 2)
 mylstm = mylstm.cuda()
 loss_fn = nn.CrossEntropyLoss().float().cuda()
 opt = optim.Adam(mylstm.parameters(), lr=0.01)

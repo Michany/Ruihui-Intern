@@ -22,14 +22,14 @@ try:
 except:
     raise Exception("请安装所需包: 打开命令提示符cmd，输入 pip install pymssql 安装")
 conn=pymssql.connect(server='192.168.0.28',port=1433,user='sa',password='abc123',
-                     database='RawData') 
+                     database='WIND') 
 SQL='''
 SELECT b.code FROM HS300COMPWEIGHT as b
 where b.[Date] BETWEEN '2018-07-01' and '2018-07-03' ORDER BY b.code'''#, a.s_fa_totalequity_mrq    and a.REPORT_PERIOD LIKE '____1231'
-SQL='''
-SELECT b.code FROM [中证500成分权重] as b
-where b.[Date] BETWEEN '2018-06-21' and '2018-07-03'
-'''
+#SQL='''
+#SELECT b.code FROM [中证500成分权重] as b
+#where b.[Date] BETWEEN '2018-06-21' and '2018-07-03'
+#'''
 data = pd.read_sql(SQL,conn)
 pool = list(data['code'])
 
@@ -39,7 +39,7 @@ hs300 = hs300.sclose
 
 # 获取数据，计算RSI
 START_DATE = '20070201'
-END_DATE = '20180830'
+END_DATE = '20180930'
 price = get_muti_close_day(pool, START_DATE, END_DATE)
 price.fillna(method="ffill", inplace=True)
 print("Historical Data Loaded!")
@@ -52,7 +52,9 @@ RSI=RSI.replace(0,np.nan)
 RSI_normalized = ((RSI.T-50)/分母).T
 RSI_normalized.fillna(0,inplace=True)
 pos = RSI_normalized[RSI_normalized>0]
-
+pos[pos.T.sum()>0.7] *= 1.3
+pos[pos.T.sum()<0.4] *= 0.8
+pos[pos.T.sum()<0.3] *= 0.8
 # share记录了实时的仓位信息
 交易日=4
 share = pos[pos.index.dayofweek == 交易日]
@@ -81,4 +83,4 @@ df.to_excel('RSI横截面_纯多头.xlsx')
 hs300.resample('y').last()/hs300.resample('y').first()-1
 
 
-
+print(daily_pnl['2017'].T.sum().sum())
