@@ -9,4 +9,10 @@ Incluing:
 - Rotation 
   - stock/index Pool
   - ROE selection 
+  - Round the shares by 2 or even less to make it feasible
+  
+- Index enhancement
+  - HS300
+  - ZZ500
+  Based on _RSI cross section_
 - RNN / LSTM (Currently working on)
