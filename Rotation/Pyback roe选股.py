@@ -573,8 +573,8 @@ class Backtest():
                 if len(BUY_SIGNALS[symbol])==0: continue
                 # 已经 debug “选股开仓”的信号总金额没有规整到1000
                 for signal in BUY_SIGNALS[symbol]:
-                    BUY_SIGNALS[symbol][signal]["amount"] = (
-                        (self.INITIAL_CAPITAL)/ total_share_required / price_today[symbol])
+                    BUY_SIGNALS[symbol][signal]["amount"] = round(
+                        (self.INITIAL_CAPITAL)/ total_share_required / price_today[symbol],2)
                         #round( BUY_SIGNALS[symbol][signal]["amount"]/ price_today[symbol]/100, 4) * 100000
                         # )
                     

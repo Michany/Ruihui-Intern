@@ -359,91 +359,6 @@ def AE_featrure():
 decoded_layer = AE_featrure()
 
 
-def do_predict():
-    val = [1]
-    for i in range(len(time_data) - 1):
-        position_cnt = 0
-        position_list = []
-        return_list = []
-        date = close_data.index
-        today = date[i]
-        for stock in predict_dict.keys():
-            stock = predict_dict[stock]
-            index = list(stock.index)
-            if today not in index:
-                position_list.append(0)
-                return_list.append(0)
-                continue
-            today_index = index.index(today)
-            if today_index < TIME_SERIES:
-                position_list.append(0)
-                return_list.append(0)
-                continue
-            feature = stock.iloc[today_index - TIME_SERIES : today_index].values[:, :-2]
-            mylstm.hidden = mylstm.pre_hidden()
-            feature = torch.from_numpy(feature)
-            feature = feature.contiguous().view(1, TIME_SERIES, -1).cuda()
-            output = mylstm(feature.float())
-            signal = output[0].cpu().data.numpy().argmax()
-            position_cnt += 1
-            if position_cnt >= 11:
-                position_list.append(0)
-            else:
-                if signal == 1:
-                    position_list.append(1)
-                else:
-                    position_list.append(0)
-            return_list.append(stock.iloc[today_index].values[-1])
-        return_list.append(0)
-        return_list = np.array(return_list) + 1
-        position_list.append(10 - position_list.count(1))
-        position_list = np.array(position_list) / 10
-        val.append(val[-1] * ((return_list * position_list).sum()))
-    return val
-
-
-def do_train():
-    val = [1]
-    for i in range(len(time_data) - 1):#每天循环
-        position_cnt = 0
-        position_list = []
-        return_list = []
-        date = close_data.index
-        today = date[i]
-        for stock in train_dict.keys():
-            stock = train_dict[stock]
-            index = list(stock.index)
-            if today not in index:
-                position_list.append(0)
-                return_list.append(0)
-                continue
-            today_index = index.index(today)
-            if today_index < TIME_SERIES:
-                position_list.append(0)
-                return_list.append(0)
-                continue
-            feature = stock.iloc[today_index - TIME_SERIES : today_index].values[:, :-2]
-            mylstm.hidden = mylstm.pre_hidden()
-            feature = torch.from_numpy(feature)
-            feature = feature.contiguous().view(1, TIME_SERIES, -1).cuda()
-            output = mylstm(feature.float())
-            signal = output[0].cpu().data.numpy().argmax()
-            position_cnt += 1
-            if position_cnt >= 11:
-                position_list.append(0)
-            else:
-                if signal == 1:
-                    position_list.append(1)
-                else:
-                    position_list.append(0)
-            return_list.append(stock.iloc[today_index].values[-1])
-        return_list.append(0)
-        return_list = np.array(return_list) + 1
-        position_list.append(10 - position_list.count(1))
-        position_list = np.array(position_list) / 10
-        val.append(val[-1] * ((return_list * position_list).sum()))
-    return val
-
 #%%
 def eval_train():
     cnt = 0
@@ -468,6 +383,7 @@ def eval_train():
 def eval_predict():
     cnt = 0
     for feature, target in predict_loader:
+        print(feature.shape)
         if feature.size()[0] != BATCH_SIZE:
             continue
         mylstm.hidden = mylstm.initHidden()
@@ -485,7 +401,7 @@ def eval_predict():
     print(cnt / len(predict_loader) / 200)
 
 
-mylstm = LSTM(32, 32, 1)
+mylstm = LSTM(32, 32, 2)
 mylstm = mylstm.cuda()
 loss_fn = nn.CrossEntropyLoss().float().cuda()
 opt = optim.Adam(mylstm.parameters(), lr=0.01)
