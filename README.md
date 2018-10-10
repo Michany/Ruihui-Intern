@@ -10,11 +10,11 @@ Incluing:
   - stock/index Pool
   - ROE selection 
   - Round the shares by 2 or even less to make it feasible  
-  ![image](https://github.com/Ruihui-Intern/Rotation/定投保留1位小数 10-10.png)
+  ![image](https://github.com/Ruihui-Intern/Rotation/定投保留1位小数10-10.png)
 - Index enhancement
   - HS300
   - ZZ500
   Based on RSI cross section  
-  ![image](https://github.com/Ruihui-Intern/Index Enhancement/HS300.png)
+  ![image](https://github.com/Ruihui-Intern/IndexEnhancement/HS300.png)
   Based on _RSI cross section_
 - RNN / LSTM (Currently working on)
