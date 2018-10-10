@@ -111,7 +111,7 @@ class Backtest():
         """
         print("Fetching Historical Data...")
         if type == 1:
-            price = get_muti_close_day(self.POOL, self.START_DATE, self.END_DATE)
+            price = get_muti_close_day(self.POOL, self.START_DATE, self.END_DATE, adjust = True)
         elif type == 0:
             price = {}
             for symbol in self.POOL:
@@ -836,7 +836,7 @@ if __name__ == "__main__":
     test = Backtest(pool=[], type='stock', duration = 50,
                     start_date="20070201", end_date="20180927", 
                     load_data=False,
-                    initial_capital = 10000, 
+                    initial_capital = 1000, 
                     profit_ceiling=[0.6, 0.4, 0.2], 
                     trailing_percentage=[1, 0.4, 0.2])
                     # profit_ceiling=[0.5], trailing_percentage=[1])
@@ -849,7 +849,7 @@ if __name__ == "__main__":
 
     
     if True:
-        test.run(mute=True)
+        test.run(mute=False)
         Backtest.generate_profit_curve(test.summarize(write_excel=False))
         #Optimizer.pool_optimize(backtest=test,pool=test.POOL)
     
