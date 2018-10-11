@@ -435,7 +435,7 @@ class Backtest():
                 else:
                     percentage = amount / self.share[-1][symbol]
             else:
-                amount = self.share[-1][symbol] * percentage
+                amount = round(self.share[-1][symbol] * percentage, 0)
             if mute: end='\r'
             else: end='\n'
             print(day.strftime("%Y-%m-%d"), "卖出 {:.2f} 份 {}".format(amount, symbol),
@@ -573,8 +573,12 @@ class Backtest():
                 if len(BUY_SIGNALS[symbol])==0: continue
                 # 已经 debug “选股开仓”的信号总金额没有规整到1000
                 for signal in BUY_SIGNALS[symbol]:
-                    BUY_SIGNALS[symbol][signal]["amount"] = round(
-                        (self.INITIAL_CAPITAL)/ total_share_required / price_today[symbol],2)
+                    BUY_SIGNALS[symbol][signal]["amount"] = (self.INITIAL_CAPITAL)/ total_share_required / price_today[symbol]
+                    if BUY_SIGNALS[symbol][signal]["amount"] <=0.5:
+                        BUY_SIGNALS[symbol][signal]["amount"] = 1
+                    else:
+                        BUY_SIGNALS[symbol][signal]["amount"] = round(BUY_SIGNALS[symbol][signal]["amount"],0)
+                        
                         #round( BUY_SIGNALS[symbol][signal]["amount"]/ price_today[symbol]/100, 4) * 100000
                         # )
                     
@@ -850,7 +854,7 @@ if __name__ == "__main__":
     
     if True:
         test.run(mute=False)
-        Backtest.generate_profit_curve(test.summarize(write_excel=False))
+        Backtest.generate_profit_curve(test.summarize(write_excel=True))
         #Optimizer.pool_optimize(backtest=test,pool=test.POOL)
     
     test.latest_weight()
