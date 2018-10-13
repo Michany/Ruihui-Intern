@@ -401,10 +401,10 @@ def eval_predict():
     print(cnt / len(predict_loader) / 200)
 
 #%%
-mylstm = LSTM(62, 62, 2)
+mylstm = LSTM(32, 32, 2)
 mylstm = mylstm.cuda()
 loss_fn = nn.CrossEntropyLoss().float().cuda()
-opt = optim.Adam(mylstm.parameters(), lr=0.01)
+opt = optim.Adam(mylstm.parameters(), lr=0.001)
 
 collect = []
 tim.tic()
