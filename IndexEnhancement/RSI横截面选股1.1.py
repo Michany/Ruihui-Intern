@@ -70,7 +70,7 @@ pos[pos.T.sum()>1] = pos[pos.T.sum()>1].divide(pos.T.sum()[pos.T.sum()>1],axis=0
 pos.fillna(0, inplace = True)
 # share记录了实时的仓位信息
 交易日=4
-share = pos#[pos.index.dayofweek == 交易日]
+share = pos[pos.index.dayofweek == 交易日]
 #share[share<1e-4] = 0
 share = share.reindex(pos.index)
 share.fillna(method='ffill',inplace=True)
@@ -85,6 +85,9 @@ balance = share * price
 #
 price_pct_change = price.pct_change().replace(np.inf,0)
 daily_pnl = price_pct_change * balance.shift(1)
+# 手续费，卖出时收取
+daily_pnl += -(share.diff()[share<share.shift(1)] * price * 0.0013).fillna(0).abs()
+
 #分别绘制复利和单利
 plt.rcParams["font.sans-serif"] = ["SimHei"]
 plt.rcParams["axes.unicode_minus"] = False
