@@ -45,7 +45,7 @@ price_pct_chg = price.pct_change()
 price_std = price.rolling(window=DURATION).std()  # 计算标准差
 R = (price / price.shift(1)).apply(np.log)
 sigma = R.rolling(window=DURATION).std()
-mu = (price / price.shift(DURATION)).apply(np.log) + 0.5 * np.sqrt(sigma)
+mu = (price / price.shift(DURATION)).apply(np.log) + 0.5 * np.square(sigma)
 
 # %% 策略部分 分配仓位
 # 买入时机
