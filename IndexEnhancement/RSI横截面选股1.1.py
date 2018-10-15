@@ -69,8 +69,8 @@ pos[pos.T.sum()<0.3] *= 0.5
 pos[pos.T.sum()>1] = pos[pos.T.sum()>1].divide(pos.T.sum()[pos.T.sum()>1],axis=0)
 pos.fillna(0, inplace = True)
 # share记录了实时的仓位信息
-交易日=3
-share = pos[pos.index.dayofweek == 交易日]
+交易日=4
+share = pos#[pos.index.dayofweek == 交易日]
 #share[share<1e-4] = 0
 share = share.reindex(pos.index)
 share.fillna(method='ffill',inplace=True)
@@ -80,10 +80,11 @@ that = round(share * initialCaptial/ price,-2)
 share = that.fillna(method='ffill')
 del that
 
+balance = share * price
 
 #
 price_pct_change = price.pct_change().replace(np.inf,0)
-daily_pnl = price_pct_change * share.shift(1)
+daily_pnl = price_pct_change * balance.shift(1)
 #分别绘制复利和单利
 plt.rcParams["font.sans-serif"] = ["SimHei"]
 plt.rcParams["axes.unicode_minus"] = False
@@ -94,7 +95,7 @@ hs300 = hs300.reindex(daily_pnl.index)
 hs300/=hs300.iloc[0]
 hs300.plot(label='HS300')
 plt.legend(fontsize=15)
-plt.title('RSI参数={}，交易日期=周{},周频'.format(RSI_arg,交易日+1),fontsize=15)
+plt.title('RSI参数={}，日频'.format(RSI_arg,交易日+1),fontsize=15)
 plt.show()
 
 #%%看回测
