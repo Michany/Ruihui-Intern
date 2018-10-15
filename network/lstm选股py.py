@@ -14,11 +14,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as Data
 
-# import sys
-
-# local_path = "C://Users//Administrator/Desktop/"
-# if local_path not in sys.path:
-#     sys.path.append(local_path)
+# pylint: disable=E1101,E1103
+# pylint: disable=W0212,W0231,W0703,W0622
 
 import data_reader as rd
 import tictoc as tim
