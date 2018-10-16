@@ -4,12 +4,17 @@
 
 - 分别做了HS300和中证500
 
-- 修复了在按周调仓的认定上得bug.  
-  根据周频reindex后会有nan值，而随后的fillna会使得na值被向前覆盖。
+- 修复了在按周调仓的认定上的bug.  
+  根据周频reindex后会有nan值，而随后的fillna会使得na值被向前覆盖。  
   需要先fillna再进行
-- 采用前复权价格
+
+- 采用前复权价格（更新data_reader)
+
 - 新增近似股数功能
-updated on 2018/10/13
+
+- 新增手续费
+
+updated on 2018/10/16
 """
 
 import pandas as pd
@@ -20,7 +25,6 @@ from data_reader import get_muti_close_day, get_index_day
 import datetime
 import pymssql
 
-# pool=['600000.SH','600016.SH','600019.SH','600028.SH','600029.SH','600030.SH','600036.SH','600048.SH','600050.SH','600104.SH','600111.SH','600309.SH','600340.SH','600518.SH','600519.SH','600547.SH','600606.SH','600837.SH','600887.SH','600919.SH','600958.SH','600999.SH','601006.SH','601088.SH','601166.SH','601169.SH','601186.SH','601211.SH','601229.SH','601288.SH','601318.SH','601328.SH','601336.SH','601390.SH','601398.SH','601601.SH','601628.SH','601668.SH','601669.SH','601688.SH','601766.SH','601800.SH','601818.SH','601857.SH','601878.SH','601881.SH','601985.SH','601988.SH','601989.SH','603993.SH']
 
 underLying = 'hs300'#zz500
 if underLying=='hs300':
@@ -50,7 +54,7 @@ price = get_muti_close_day(pool, START_DATE, END_DATE)
 price.fillna(method="ffill", inplace=True)
 print("Historical Data Loaded!")
 
-#%%
+#%% 仓位计算和优化处理
 RSI_arg = 30
 RSI = price.apply(getattr(talib, 'RSI'), args=(RSI_arg,))
 RSI=RSI.replace(0,np.nan)
@@ -66,42 +70,48 @@ pos[pos.T.sum()>0.7] *= 1.1
 pos[pos.T.sum()>0.8] *= 1.1
 pos[pos.T.sum()<0.4] *= 0.8
 pos[pos.T.sum()<0.3] *= 0.5
+# 将总和超出1的仓位，除以总和，归为1
 pos[pos.T.sum()>1] = pos[pos.T.sum()>1].divide(pos.T.sum()[pos.T.sum()>1],axis=0)
 pos.fillna(0, inplace = True)
+
 # share记录了实时的仓位信息
+# 注意：交易时间为交易日的收盘前
 交易日=4
-share = pos[pos.index.dayofweek == 交易日]
-#share[share<1e-4] = 0
+share = pos#[pos.index.dayofweek == 交易日]
 share = share.reindex(pos.index)
 share.fillna(method='ffill',inplace=True)
+
 #近似
 initialCaptial = 1e6
 that = round(share * initialCaptial/ price,-2)
 share = that.fillna(method='ffill')
 del that
-
+# balance为账户余额
 balance = share * price
 
-#
-price_pct_change = price.pct_change().replace(np.inf,0)
+# 前一天的账户余额 * 当日股价变动 = 当日盈亏
 daily_pnl = price_pct_change * balance.shift(1)
 # 手续费，卖出时收取
-daily_pnl += -(share.diff()[share<share.shift(1)] * price * 0.0013).fillna(0).abs()
+fee_rate = 0.0013
+fee = (share.diff()[share<share.shift(1)] * price * fee_rate).fillna(0).abs()
+daily_pnl -= fee
 
 #分别绘制复利和单利
 plt.rcParams["font.sans-serif"] = ["SimHei"]
 plt.rcParams["axes.unicode_minus"] = False
 plt.figure(figsize=(9,6))
-#(daily_pnl.T.sum()+1).cumprod().plot(label='复利')
-(daily_pnl.T.sum().cumsum()+1).plot(label='单利')
+
+NAV = daily_pnl.T.sum().cumsum() / initialCaptial + 1
+NAV.plot(label='单利')
 hs300 = hs300.reindex(daily_pnl.index)
 hs300/=hs300.iloc[0]
 hs300.plot(label='HS300')
 plt.legend(fontsize=15)
-plt.title('RSI参数={}，日频'.format(RSI_arg,交易日+1),fontsize=15)
+# plt.title('RSI参数={}，日频，无手续费'.format(RSI_arg),fontsize=15)
+plt.title('RSI参数={}，日频，手续费{:.1f}‰'.format(RSI_arg, fee_rate*1000), fontsize=15)
 plt.show()
 
-#%%看回测
+#%% 看回测
 df = pd.DataFrame({'Daily_pnl':daily_pnl.T.sum(), 'NAV':(daily_pnl.T.sum().cumsum()+1)},index = daily_pnl.index)
 df.to_excel('RSI横截面_纯多头_收益率明细_{}.xlsx'.format(datetime.date.today().strftime('%y-%m-%d')),
             sheet_name = 'RSI={},周{},周频'.format(RSI_arg,交易日+1))
@@ -109,6 +119,6 @@ share.to_excel('RSI横截面_纯多头_持仓明细_{}.xlsx'.format(datetime.dat
                sheet_name = 'RSI={},周{},周频'.format(RSI_arg,交易日+1))
 # 在draw_pdf.py中画图
 
-
+print("沪深300年收益")
 print(hs300.resample('y').last()/hs300.resample('y').first()-1)
-print(daily_pnl['2017'].T.sum().sum())
+print('2017年收益：{:.2%}'.format(daily_pnl['2017'].T.sum().sum()))
