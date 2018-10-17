@@ -79,6 +79,7 @@ pos.fillna(0, inplace = True)
 share = pos#[pos.index.dayofweek == 交易日]
 share = share.reindex(pos.index)
 share.fillna(method='ffill',inplace=True)
+price_pct_change = price.pct_change().replace(np.inf,0)
 
 #近似
 initialCaptial = 1e6
