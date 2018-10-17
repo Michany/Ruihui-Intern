@@ -32,9 +32,11 @@ Projects listed as follows (in chronical order):
 6. Index enhancement (Currently working on)  
     - HS300
     - ZZ500
+    - HSI
+    - stocks in Hong Kong with market value greater than ￥50,000,000,000
   Based on RSI cross section  
   ![image](https://github.com/Michany/Ruihui-Intern/raw/master/IndexEnhancement/HS300.png)   
-  __Also need to be rounded.__
+  __could be rounded to 100 shares.__
 7. RNN / LSTM (Currently working on)
 
 
@@ -47,5 +49,7 @@ Projects listed as follows (in chronical order):
 2. Differences and midunderstandings about "delta" and "gross".
    Under most circumstances, "delta" measures the rick exposure of your position.  
    However, it is not always the case when you have both long and short position (on slightly different underlying assets, which you thought are the same).
-3. The use of Auto-Encoder.
-4. 
+3. How to calculate __accumulated mean__ quickly?
+   Simple.  
+   Although there is no direct method like ``cummean()``, you can still make full use of ``rolling(window=10000, min_period=0).mean()``. That is a quick method using C++ based code.  
+4. The use of Auto-Encoder.
