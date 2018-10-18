@@ -149,7 +149,9 @@ class AutoEncoder(nn.Module):
 
 
 def label(x):
-    if x >= 11:
+    if x >= 21:
+        return 2
+    elif x>=11:
         return 1
     else:
         return 0
@@ -398,10 +400,10 @@ def eval_predict():
     print(cnt / len(predict_loader) / 200)
 
 #%%
-mylstm = LSTM(32, 32, 2)
+mylstm = LSTM(32, 32, 3)
 mylstm = mylstm.cuda()
 loss_fn = nn.CrossEntropyLoss().float().cuda()
-opt = optim.Adam(mylstm.parameters(), lr=0.001)
+opt = optim.Adam(mylstm.parameters(), lr=0.01)
 
 collect = []
 tim.tic()
