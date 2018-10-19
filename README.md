@@ -29,14 +29,21 @@ Projects listed as follows (in chronical order):
     - Round the shares by 2 or even less to make it feasible   
   ![image](https://github.com/Michany/Ruihui-Intern/raw/master/Rotation/定投保留1位小数10-10.png)  
 5. Options (Currently working on)  
+   Designing a product for those who already hold the long position of ZE901 (core)  
+   The decision of buying or writing an option is made based on the prediction of the core price.  
 6. Index enhancement (Currently working on)  
     - HS300
     - ZZ500
-    - HSI
-    - stocks in Hong Kong with market value greater than ￥50,000,000,000
-  Based on RSI cross section  
-  ![image](https://github.com/Michany/Ruihui-Intern/raw/master/IndexEnhancement/HS300.png)   
-  __could be rounded to 100 shares.__
+    - HSI / stocks in Hong Kong with market value greater than ￥50 billion.
+    - _TODO: apply it in US stock market_
+    ![image](https://github.com/Michany/Ruihui-Intern/raw/master/IndexEnhancement/HS300.png)   
+    The enhancement is made mainly based on the RSI cross section, with some sort of timing decision.  
+    It turns out RSI can be a very effective technical indicator, if used on a pool with neither too many stocks nor too less.  
+    Some highlighted features:
+    - __Could be rounded to 100 shares.__ That means, with only ￥1 million, you can actually apply the strategy.
+    - __Low ratio of turnover.__ No need to adjust position in high frequency. Actually you need to do it only weekly.  
+    - 
+    
 7. RNN / LSTM (Currently working on)
 
 
