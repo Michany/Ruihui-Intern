@@ -259,6 +259,7 @@ for i in stock_pool:
     ta_data = pd.concat([benchmark_data, ta_data], axis=1)
     ta_data = ta_data.dropna()
     features = ta_data.iloc[:, :-2] #去掉倒数两列，分别是 label 和 Return
+    # 靠哦v横截面上归一化
     features = (features - features.cummin()) / (features.cummax() - features.cummin()) # 归一化所有 features
     ta_data.iloc[:, :-2] = features
     ta_data = ta_data.dropna()
@@ -382,12 +383,13 @@ def eval_train():
 def eval_predict():
     cnt = 0
     for feature, target in predict_loader:
-        print(feature.shape)
+
         if feature.size()[0] != BATCH_SIZE:
             continue
         mylstm.hidden = mylstm.initHidden()
         feature = feature.float().cuda()
         feature = decoded_layer(feature)
+        print(feature.shape)
         # reduced_feature = decoded_layer(feature)
         target = target.long().cuda()
         out = mylstm(feature)

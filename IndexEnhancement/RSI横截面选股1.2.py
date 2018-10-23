@@ -17,7 +17,7 @@ from data_reader import get_muti_close_day, get_index_day, get_hk_index_day
 import pymssql
 
 # 获取标的数据
-underLying = 'zz500'#zz500
+underLying = 'hsi'#zz500
 if underLying == 'hs300':
     conn = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
     SQL = '''SELECT b.code FROM HS300COMPWEIGHT as b
@@ -65,7 +65,7 @@ def 获取数据():
 #%% 
 def 仓位计算和优化(arg=30):
     global pos,RSI_arg
-
+    # TODO 港股多空
     RSI_arg = arg
     RSI = price.apply(getattr(talib, 'RSI'), args=(RSI_arg,))
     RSI=RSI.replace(0,np.nan)
@@ -84,12 +84,12 @@ def 仓位计算和优化(arg=30):
     # 将总和超出1的仓位，除以总和，归为1
     pos[pos.T.sum()>1] = pos[pos.T.sum()>1].divide(pos.T.sum()[pos.T.sum()>1],axis=0)
     pos.fillna(0, inplace = True)
-仓位计算和优化(30)
+仓位计算和优化(12)
 #%%
 # share记录了实时的仓位信息
 # 注意：交易时间为交易日的收盘前
 交易日=3
-share = pos#[pos.index.dayofweek == 交易日]
+share = pos[pos.index.dayofweek == 交易日]
 share = share.reindex(pos.index)
 share.fillna(method='ffill',inplace=True)
 price_pct_change = price.pct_change().replace(np.inf,0)
