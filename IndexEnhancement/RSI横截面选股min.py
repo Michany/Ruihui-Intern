@@ -4,9 +4,9 @@
 
 `Based on Version 1.1`
 
-- 港股
-- 市值大于100亿
-updated on 2018/10/22
+- 5min 频率上做文章
+
+updated on 2018/10/23
 """
 import datetime
 import pandas as pd
@@ -54,10 +54,10 @@ del data
 # 
 def 获取数据():
     global price
-    START_DATE = '2007-02-01'
+    START_DATE = '2016-02-01'
     END_DATE = datetime.date.today().strftime('%Y-%m-%d')
     print('正在获取数据...自 {} 至 {}'.format(START_DATE, END_DATE))
-    price = get_muti_close_day(pool, START_DATE, END_DATE, HK=(underLying=='hsi'))
+    price = get_muti_close_min(pool, START_DATE, END_DATE, HK=(underLying=='hsi'))
     price.fillna(method="ffill", inplace=True)
     print("Historical Data Loaded!")
 获取数据()
