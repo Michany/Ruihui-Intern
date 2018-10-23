@@ -33,10 +33,19 @@ elif underLying == 'zz500':
 elif underLying == 'hsi':
     hsi = get_hk_index_day('HSI.HI', '2007-02-01', datetime.date.today().strftime('%Y-%m-%d'), '1D')
     hsi = hsi.sclose
+elif underLying == '800':
+    conn1 = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
+    SQL1 = '''SELECT b.code FROM HS300COMPWEIGHT as b where b.[Date] BETWEEN '2018-07-01' and '2018-07-03' ORDER BY b.code'''
+    conn2 = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='RawData')
+    SQL2 = '''SELECT b.code FROM [中证500成分权重] as b where b.[Date] BETWEEN '2018-06-21' and '2018-07-03' '''
 
 if underLying=='hs300' or underLying=='zz500':
     data = pd.read_sql(SQL, conn)
-    
+elif underLying == '800':
+    data1 = pd.read_sql(SQL1, conn1)
+    data2 = pd.read_sql(SQL2, conn2)
+    data = pd.concat([data1, data2],axis=1)
+    del data1, data2
 elif underLying=='hsi':
     data = pd.read_excel(r"C:\Users\meiconte\Documents\RH\IndexEnhancement\HK100亿_01.xlsx",sheet_name='Database')
 pool = list(data['code'])
