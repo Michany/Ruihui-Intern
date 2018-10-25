@@ -47,8 +47,11 @@ Projects listed as follows (in chronical order):
 5. Options (Currently working on)  
    Designing a product for those who already hold the long position of ZE901 (core)  
    The decision of buying or writing an option is made based on the prediction of the core price.  
+  
+6. Some VBA programs for work effciency
    
-6. Index enhancement (Currently working on)  
+   
+7. Index enhancement (Currently working on)  
    __A allocation strategy: based on RSI cross section__  
    
    Work out for the following indexes:  
@@ -71,10 +74,15 @@ Projects listed as follows (in chronical order):
     - __Low ratio of turnover.__ No need to adjust position in high frequency. Actually you need to do it only weekly.  
     - __Thursday is a good day.__  
     
-    _stable version: summary6.2_bitCoin.py_
+    _stable version: RSI横截面选股1.2.py_
     
+    Also available on 5 min data, with frequency of 1 hour.  
+    However, this means a lot more fees.
+
 7. RNN / LSTM (Currently working on)
    Pytorch
+
+   Alpha should probably be the target.
 
 
 ## Some thoughts

@@ -6,29 +6,31 @@
 
 - 5min 频率上做文章
 
-updated on 2018/10/23
+- 更改阈值
+
+updated on 2018/10/24
 """
 import datetime
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import talib
-from data_reader import get_muti_close_day, get_index_day, get_hk_index_day
+from data_reader import *
 import pymssql
 
 # 获取标的数据
-underLying = 'zz500'#zz500
+underLying = 'hs300'#zz500
 if underLying == 'hs300':
     conn = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
     SQL = '''SELECT b.code FROM HS300COMPWEIGHT as b
     where b.[Date] BETWEEN '2018-07-01' and '2018-07-03' ORDER BY b.code'''
-    hs300 = get_index_day('000300.SH', '2007-02-01', datetime.date.today().strftime('%Y-%m-%d'), '1D')
+    hs300 = get_index_min('000300.SH', '2016-02-01', datetime.date.today().strftime('%Y-%m-%d'), '5min')
     hs300 = hs300.sclose
 elif underLying == 'zz500':
     conn = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='RawData')
     SQL = '''SELECT b.code FROM [中证500成分权重] as b
     where b.[Date] BETWEEN '2018-06-21' and '2018-07-03' '''
-    zz500 = get_index_day('000905.SH', '2007-02-01', datetime.date.today().strftime('%Y-%m-%d'), '1D')
+    zz500 = get_index_min('000905.SH', '2007-02-01', datetime.date.today().strftime('%Y-%m-%d'), '1D')
     zz500 = zz500.sclose
 elif underLying == 'hsi':
     hsi = get_hk_index_day('HSI.HI', '2007-02-01', datetime.date.today().strftime('%Y-%m-%d'), '1D')
@@ -68,28 +70,27 @@ def 仓位计算和优化(arg=30):
 
     RSI_arg = arg
     RSI = price.apply(getattr(talib, 'RSI'), args=(RSI_arg,))
-    RSI=RSI.replace(0,np.nan)
-    分母=abs(RSI.T-50).sum()
-    RSI_normalized = ((RSI.T-50)/分母).T
+    RSI=100-RSI.replace(0,np.nan)
+    分母=abs(RSI.T-40).sum()
+    RSI_normalized = ((RSI.T-40)/分母).T
     RSI_normalized.fillna(0,inplace=True)
     pos = RSI_normalized[RSI_normalized>0]
     #pos = pos.multiply((RSI_normalized.T.sum().T + 0.3),axis=0)
     #pos[pos<0] = 0
     #pos[pos.T.sum()>1] /= pos.T.sum()
-    pos[pos.T.sum()>0.6] *= 1.1
-    pos[pos.T.sum()>0.7] *= 1.1
-    pos[pos.T.sum()>0.8] *= 1.1
-    pos[pos.T.sum()<0.4] *= 0.8
-    pos[pos.T.sum()<0.3] *= 0.5
+#    pos[pos.T.sum()>0.7] *= 1.1
+#    pos[pos.T.sum()>0.8] *= 1.1
+#    pos[pos.T.sum()>0.9] *= 1.1
+#    pos[pos.T.sum()<0.6] *= 0.8
+#    pos[pos.T.sum()<0.5] *= 0.2
     # 将总和超出1的仓位，除以总和，归为1
     pos[pos.T.sum()>1] = pos[pos.T.sum()>1].divide(pos.T.sum()[pos.T.sum()>1],axis=0)
     pos.fillna(0, inplace = True)
-仓位计算和优化(30)
+仓位计算和优化(20)
 #%%
 # share记录了实时的仓位信息
 # 注意：交易时间为交易日的收盘前
-交易日=3
-share = pos#[pos.index.dayofweek == 交易日]
+share = pos#[pos.index.minute==30]
 share = share.reindex(pos.index)
 share.fillna(method='ffill',inplace=True)
 price_pct_change = price.pct_change().replace(np.inf,0)
@@ -112,7 +113,7 @@ for year in range(2008,2019):
 #        print(this_month, initialCaptial)
 
 # 手续费，卖出时一次性收取
-fee_rate = 0.0013
+fee_rate = 0.0005
 fee = (share.diff()[share<share.shift(1)] * price * fee_rate).fillna(0).abs()
 daily_pnl -= fee
 NAV = (daily_pnl.T.sum() / 1e6).cumsum()+1
@@ -134,7 +135,7 @@ def 图像绘制():
     plt.legend(fontsize=15)
     # plt.title('RSI参数={}，日频，无手续费'.format(RSI_arg),fontsize=15)
     # plt.title('RSI参数={}，日频，手续费{:.1f}‰'.format(RSI_arg, fee_rate*1000), fontsize=15)
-    plt.title('RSI参数={}，交易日={}，手续费{:.1f}‰'.format(RSI_arg, 交易日+1, fee_rate*1000), fontsize=15)
+    plt.title('RSI参数={}，5 min，手续费{:.1f}‰'.format(RSI_arg, fee_rate*1000), fontsize=15)
     plt.show()
 图像绘制()
 #%% 

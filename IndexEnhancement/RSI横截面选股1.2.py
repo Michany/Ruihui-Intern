@@ -6,7 +6,8 @@
 
 - 港股
 - 市值大于100亿
-updated on 2018/10/22
+- 5e6
+updated on 2018/10/25
 """
 import datetime
 import pandas as pd
@@ -17,7 +18,7 @@ from data_reader import get_muti_close_day, get_index_day, get_hk_index_day
 import pymssql
 
 # 获取标的数据
-underLying = 'hsi'#zz500
+underLying = 'hs300'#zz500
 if underLying == 'hs300':
     conn = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
     SQL = '''SELECT b.code FROM HS300COMPWEIGHT as b
@@ -33,18 +34,19 @@ elif underLying == 'zz500':
 elif underLying == 'hsi':
     hsi = get_hk_index_day('HSI.HI', '2007-02-01', datetime.date.today().strftime('%Y-%m-%d'), '1D')
     hsi = hsi.sclose
-elif underLying == '800':
+elif underLying == 'zz800':
     conn1 = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
     SQL1 = '''SELECT b.code FROM HS300COMPWEIGHT as b where b.[Date] BETWEEN '2018-07-01' and '2018-07-03' ORDER BY b.code'''
     conn2 = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='RawData')
     SQL2 = '''SELECT b.code FROM [中证500成分权重] as b where b.[Date] BETWEEN '2018-06-21' and '2018-07-03' '''
-
+    zz800 =  get_index_day('000906.SH', '2007-02-01', datetime.date.today().strftime('%Y-%m-%d'), '1D')
+    zz800 = zz800.sclose
 if underLying=='hs300' or underLying=='zz500':
     data = pd.read_sql(SQL, conn)
-elif underLying == '800':
+elif underLying == 'zz800':
     data1 = pd.read_sql(SQL1, conn1)
     data2 = pd.read_sql(SQL2, conn2)
-    data = pd.concat([data1, data2],axis=1)
+    data = pd.concat([data1, data2], ignore_index=True)
     del data1, data2
 elif underLying=='hsi':
     data = pd.read_excel(r"C:\Users\meiconte\Documents\RH\IndexEnhancement\HK100亿_01.xlsx",sheet_name='Database')
@@ -57,17 +59,17 @@ def 获取数据():
     START_DATE = '2007-02-01'
     END_DATE = datetime.date.today().strftime('%Y-%m-%d')
     print('正在获取数据...自 {} 至 {}'.format(START_DATE, END_DATE))
-    price = get_muti_close_day(pool, START_DATE, END_DATE, HK=(underLying=='hsi'))
+    price = get_muti_close_day(pool, START_DATE, END_DATE, adjust=-1, HK=(underLying=='hsi'))
     price.fillna(method="ffill", inplace=True)
     print("Historical Data Loaded!")
 获取数据()
 
 #%% 
 def 仓位计算和优化(arg=30):
-    global pos,RSI_arg
+    global pos,RSI_arg,RSI
     # TODO 港股多空
     RSI_arg = arg
-    RSI = price.apply(getattr(talib, 'RSI'), args=(RSI_arg,))
+    RSI = price.apply(getattr(talib, 'RSI'), args=(RSI_arg,)).shift(1)
     RSI=RSI.replace(0,np.nan)
     分母=abs(RSI.T-50).sum()
     RSI_normalized = ((RSI.T-50)/分母).T
@@ -84,7 +86,7 @@ def 仓位计算和优化(arg=30):
     # 将总和超出1的仓位，除以总和，归为1
     pos[pos.T.sum()>1] = pos[pos.T.sum()>1].divide(pos.T.sum()[pos.T.sum()>1],axis=0)
     pos.fillna(0, inplace = True)
-仓位计算和优化(12)
+仓位计算和优化(30)
 #%%
 # share记录了实时的仓位信息
 # 注意：交易时间为交易日的收盘前
@@ -106,7 +108,7 @@ for year in range(2008,2019):
         except:
             continue
         share[this_month] = temp.fillna(method='ffill')
-        daily_pnl = daily_pnl.append(price_pct_change[this_month] * (share[this_month]*price[this_month]).shift(1))
+        daily_pnl = daily_pnl.append(price_pct_change[this_month] * (share[this_month]*price[this_month]))
         initialCaptial += daily_pnl[this_month].T.sum().sum()
         # NAV = NAV.append((daily_pnl[this_month].T.sum() / 1e6)) # 还没算手续费
 #        print(this_month, initialCaptial)
@@ -115,7 +117,7 @@ for year in range(2008,2019):
 fee_rate = 0.0013
 fee = (share.diff()[share<share.shift(1)] * price * fee_rate).fillna(0).abs()
 daily_pnl -= fee
-NAV = (daily_pnl.T.sum() / 1e6).cumsum()+1
+NAV = (daily_pnl.T.sum() / initialCaptial).cumsum()+1
 #换手率
 换手率=((share * price).divide((share * price).T.sum(),axis=0).diff().abs().T.sum() / 2)
 print("每周换手率 {:.2%}".format(换手率.mean()))

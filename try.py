@@ -81,23 +81,6 @@ class WindStock():
                 index_data = index_data[index_data['open'] > 0]  
                 #index_data.fillna(0)  
                 w.start()  
-        #  except Exception as e:  
-        #          #如果读取处理失败，可能是网络中断、频繁访问被限、历史数据缺失等原因。写入相关信息到日志表，便于后续补充处理  
-        #          error_log=pd.DataFrame()  
-        #          error_log['trade_date']=stock.Times  
-        #          error_log['stock_code']=stock.Data[0]  
-        #          error_log['start_date']=start_date  
-        #          error_log['end_date']=end_date  
-        #          error_log['status']=None  
-        #          error_log['table']='stock_daily_data'  
-        #          error_log['args']='Symbol: '+symbol+' From '+start_date+' To '+end_date  
-        #          error_log['error_info']=e  
-        #          error_log['created_date']=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))  
-        #          error_log.to_sql('stock_error_log',engine,if_exists='append')  
-        #          print ( self.getCurrentTime(),":index_data %s : Exception :%s" % (symbol,e) )  
-        #          time.sleep(sleep_time)  
-        #          w.start()  
-        #          continue  
             except:
                 # 如果读取处理失败，可能是网络中断、频繁访问被限、历史数据缺失等原因。写入相关信息到日志表，便于后续补充处理  
                 error_log=pd.DataFrame()  
