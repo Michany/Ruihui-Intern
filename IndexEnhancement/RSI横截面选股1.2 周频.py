@@ -6,7 +6,7 @@
 
 - 港股
 - 市值大于100亿
-- 5e6
+- 5e7
 updated on 2018/10/25
 """
 import datetime
@@ -100,8 +100,8 @@ price_pct_change = price.pct_change().replace(np.inf,0)
 #近似
 daily_pnl=pd.DataFrame()
 NAV = pd.Series()
-initialCaptial = 5e7
 for year in range(2008,2019):
+    initialCaptial = 5e7
     for month in range(1,13):
         this_month = str(year)+'-'+str(month)
         try:
