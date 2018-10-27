@@ -60,7 +60,7 @@ def 获取数据():
     START_DATE = '2007-02-01'
     END_DATE = datetime.date.today().strftime('%Y-%m-%d')
     print('正在获取数据...自 {} 至 {}'.format(START_DATE, END_DATE))
-    price = get_muti_close_day(pool, START_DATE, END_DATE, adjust=-1, HK=(underLying=='hsi'))
+    price = get_muti_close_day(pool, START_DATE, END_DATE, HK=(underLying=='hsi'))
     price.fillna(method="ffill", inplace=True)
     print("Historical Data Loaded!")
 获取数据()
@@ -100,7 +100,7 @@ price_pct_change = price.pct_change().replace(np.inf,0)
 #近似
 daily_pnl=pd.DataFrame()
 NAV = pd.Series()
-initialCaptial = 1e6
+initialCaptial = 5e7
 for year in range(2008,2019):
     for month in range(1,13):
         this_month = str(year)+'-'+str(month)
@@ -118,7 +118,7 @@ for year in range(2008,2019):
 fee_rate = 0.0013
 fee = (share.diff()[share<share.shift(1)] * price * fee_rate).fillna(0).abs()
 daily_pnl -= fee
-NAV = (daily_pnl.T.sum() / initialCaptial).cumsum()+1
+NAV = (daily_pnl.T.sum() / 5e7).cumsum()+1
 #换手率
 换手率=((share * price).divide((share * price).T.sum(),axis=0).diff().abs().T.sum() / 2)
 print("每周换手率 {:.2%}".format(换手率.mean()))
