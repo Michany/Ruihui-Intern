@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 import talib
 from data_reader import *
 import pymssql
+# pylint: disable=E1101,E1103
+# pylint: disable=W0212,W0231,W0703,W0622
 
 # 获取标的数据
 underLying = 'hs300'#zz500
@@ -98,8 +100,8 @@ price_pct_change = price.pct_change().replace(np.inf,0)
 #近似
 daily_pnl=pd.DataFrame()
 NAV = pd.Series()
-initialCaptial = 1e6
 for year in range(2008,2019):
+    initialCaptial = 1e6
     for month in range(1,13):
         this_month = str(year)+'-'+str(month)
         try:

@@ -16,7 +16,8 @@ import matplotlib.pyplot as plt
 import talib
 from data_reader import get_muti_close_day, get_index_day, get_hk_index_day
 import pymssql
-
+# pylint: disable=E1101,E1103
+# pylint: disable=W0212,W0231,W0703,W0622
 # 获取标的数据
 underLying = 'hs300'#zz500
 if underLying == 'hs300':
