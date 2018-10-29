@@ -1,7 +1,12 @@
 # pdfcreater classified files
-__pdfcreater/8.28/
-__pdfcreater/.vscode/
-__pdfcreater/*.pdf
+pdfcreater/8.28/
+pdfcreater/.vscode/
+pdfcreater/*.pdf
+pdfcreater/*/*.jpg
+pdfcreater/*/*.jpeg
+# 保留RSI的文件
+pdfcreater/excel/*
+!pdfcreater/excel/RSI*.xlsx
 
 
 

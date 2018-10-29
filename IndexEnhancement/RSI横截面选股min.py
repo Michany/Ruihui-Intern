@@ -58,10 +58,10 @@ del data
 # 
 def 获取数据():
     global price
-    START_DATE = '2016-02-01'
+    START_DATE = '2008-02-01'
     END_DATE = datetime.date.today().strftime('%Y-%m-%d')
     print('正在获取数据...自 {} 至 {}'.format(START_DATE, END_DATE))
-    price = get_muti_close_min(pool, START_DATE, END_DATE, HK=(underLying=='hsi'))
+    price = get_muti_close_min(pool, START_DATE, END_DATE, HK=(underLying=='hsi'), freq='1h')
     price.fillna(method="ffill", inplace=True)
     print("Historical Data Loaded!")
 获取数据()
