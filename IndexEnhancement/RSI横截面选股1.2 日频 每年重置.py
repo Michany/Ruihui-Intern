@@ -75,18 +75,18 @@ def 仓位计算和优化(arg=30):
     RSI_arg = arg
     RSI = price.apply(getattr(talib, 'RSI'), args=(RSI_arg,)).shift(1)
     RSI=RSI.replace(0,np.nan)
-    分母=abs(RSI.T-50).sum()
-    RSI_normalized = ((RSI.T-50)/分母).T
+    分母=abs(RSI.T-55).sum()
+    RSI_normalized = ((RSI.T-55)/分母).T
     RSI_normalized.fillna(0,inplace=True)
     pos = RSI_normalized[RSI_normalized>0]
-    #pos = pos.multiply((RSI_normalized.T.sum().T + 0.3),axis=0)
-    #pos[pos<0] = 0
-    #pos[pos.T.sum()>1] /= pos.T.sum()
-    pos[pos.T.sum()>0.6] *= 1.1
-    pos[pos.T.sum()>0.7] *= 1.1
-    pos[pos.T.sum()>0.8] *= 1.1
-    pos[pos.T.sum()<0.4] *= 0.8
-    pos[pos.T.sum()<0.3] *= 0.5
+#rsi一快一慢 搭配使用？
+#在rsi都往上的时候，有可能rsi阈值需要提高到50以上，比如65，然后通过少选股票，增加仓位来做
+    pos[pos.T.sum()>0.1] *= 1.5
+    pos[pos.T.sum()>0.2] *= 1.2
+    pos[pos.T.sum()>0.3] *= 1.2
+#    pos[pos.T.sum()>0] *= 1.2
+#    pos[pos.T.sum()<0.4] *= 0.8
+#    pos[pos.T.sum()<0.5] *= 0.5
     # 将总和超出1的仓位，除以总和，归为1
     pos[pos.T.sum()>1] = pos[pos.T.sum()>1].divide(pos.T.sum()[pos.T.sum()>1],axis=0)
     pos.fillna(0, inplace = True)
@@ -113,45 +113,52 @@ for year in range(2008,2019):
         share[this_month] = temp.fillna(method='ffill')
         daily_pnl = daily_pnl.append(price_pct_change[this_month] * (share[this_month]*price[this_month]))
         initialCaptial += daily_pnl[this_month].T.sum().sum()
-        
 #        print(this_month, initialCaptial)
-# 按年清空
-cum_pnl = pd.DataFrame(daily_pnl.T.sum(),columns=['pnl']
-cum_pnl['year']=cum_pnl.index.year
-cum_pnl.groupby('year')['pnl'].cumsum()
 # 手续费，卖出时一次性收取
 fee_rate = 0.0013
 fee = (share.diff()[share<share.shift(1)] * price * fee_rate).fillna(0).abs()
 daily_pnl -= fee
-NAV = (daily_pnl.T.sum() / CAPITAL).cumsum()+1
+# 按年清空
+cum_pnl = pd.DataFrame(daily_pnl.T.sum(),columns=['pnl'])
+cum_pnl['year']=cum_pnl.index.year
+cum_pnl = cum_pnl.groupby('year')['pnl'].cumsum()
+NAV = (daily_pnl.T.sum()/CAPITAL).cumsum()+1
+NAV0 = (cum_pnl / CAPITAL)+1
 #换手率
 换手率=((share * price).divide((share * price).T.sum(),axis=0).diff().abs().T.sum() / 2)
 print("每日换手率 {:.2%}".format(换手率.mean()))
 print("年化换手率 {:.2%}".format(换手率.mean()*250))
+换手率.resample('y').sum()
 
 def 图像绘制():
     global hs300
     plt.rcParams["font.sans-serif"] = ["SimHei"]
     plt.rcParams["axes.unicode_minus"] = False
     plt.figure(figsize=(9,6))
-
-    NAV.plot(label='按月复利')
+    
+    NAV.plot(label='按月复利 每年重置 累计值')
+    NAV0.plot(label='按月复利 每年重置')
     exec(underLying+' = '+underLying+".reindex(daily_pnl.index)")
     exec(underLying+' = '+underLying+'/'+underLying+'.iloc[0]')
     exec(underLying+".plot(label='"+underLying+"')")
-    plt.legend(fontsize=15)
+    plt.legend(fontsize=11)
     # plt.title('RSI参数={}，日频，无手续费'.format(RSI_arg),fontsize=15)
     plt.title('RSI参数={}，日频，手续费{:.1f}‰'.format(RSI_arg, fee_rate*1000), fontsize=15)
     # plt.title('RSI参数={}，交易日={}，手续费{:.1f}‰'.format(RSI_arg, 交易日+1, fee_rate*1000), fontsize=15)
+    plt.grid(axis='x')
     plt.show()
 图像绘制()
 #%% 
 def excel输出():
-    df = pd.DataFrame({'Daily_pnl':daily_pnl.T.sum(), 'NAV':NAV},index = daily_pnl.index)
+    df = pd.DataFrame({'Daily_pnl':daily_pnl.T.sum(),
+                       '累计PNL':cum_pnl,
+                       '账户价值':cum_pnl+CAPITAL,
+                       'NAV':NAV},
+                       index = daily_pnl.index)
     df.to_excel('RSI横截面_{}纯多头_收益率明细_{}_日.xlsx'.format(underLying, datetime.date.today().strftime('%y-%m-%d')),
-                sheet_name = 'RSI={},日频'.format(RSI_arg,交易日+1))
+                sheet_name = 'RSI={},日频'.format(RSI_arg))
     share.to_excel('RSI横截面_{}纯多头_持仓明细_{}_日.xlsx'.format(underLying,datetime.date.today().strftime('%y-%m-%d')),
-                sheet_name = 'RSI={},日频'.format(RSI_arg,交易日+1))
+                sheet_name = 'RSI={},日频'.format(RSI_arg))
 excel输出()
 print('2017年收益：{:.2%}'.format(daily_pnl['2017'].T.sum().sum()))
 #%% 敏感性
