@@ -40,7 +40,7 @@ from reportlab.graphics.charts.lineplots import LinePlot
 #查看已经注册字体
 from reportlab.pdfbase import pdfmetrics
 #时间部分
-from datetime import datetime
+from datetime import datetime, date
 from muti_plot import muti_plot
 from tictoc import *
 
@@ -395,10 +395,9 @@ def main(self, tablename_dict):
                   tablename = tablename, excel_rows = excel_rows)
     return 
 if __name__ == '__main__':
-    import datetime
     #tablename_set = ['test0724','stat_index_股份制商业银行_不良贷款与净息差','test0724','stat_index_农商行_不良贷款与净息差','stat_index_2018年一季度不良率']
-    tablename_set = ['RSI横截面_纯多头_sh300_日频_每年重置_'+datetime.date.today().strftime('%Y-%m-%d')]
-    
+    tablename_set = ['RSI横截面_纯多头_sh300_日频_每年重置_'+date.today().strftime('%Y-%m-%d')]
+    tablename_set = ['RSI横截面_纯多头_sh300_日频']
     #title用来改标题
     #strtest用来改文本，每行用<br/>隔开
     for tablename in tablename_set:

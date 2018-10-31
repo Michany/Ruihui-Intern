@@ -111,7 +111,7 @@ for year in range(2008,2019):
         share[this_month] = temp.fillna(method='ffill')
         daily_pnl = daily_pnl.append(price_pct_change[this_month] * (share[this_month]*price[this_month]))
         initialCaptial += daily_pnl[this_month].T.sum().sum()
-        capitalBalance.append(daily_pnl[this_month].T.sum())
+#        capitalBalance.append(daily_pnl[this_month].T.sum())
         # NAV = NAV.append((daily_pnl[this_month].T.sum() / 1e6)) # 还没算手续费
 #        print(this_month, initialCaptial)
 
@@ -145,9 +145,9 @@ def 图像绘制():
 def excel输出():
     df = pd.DataFrame({'Daily_pnl':daily_pnl.T.sum(), 'NAV':NAV},index = daily_pnl.index)
     df.to_excel('RSI横截面_{}纯多头_收益率明细_{}_日.xlsx'.format(underLying, datetime.date.today().strftime('%y-%m-%d')),
-                sheet_name = 'RSI={},日频'.format(RSI_arg,交易日+1))
+                sheet_name = 'RSI={},日频'.format(RSI_arg))
     share.to_excel('RSI横截面_{}纯多头_持仓明细_{}_日.xlsx'.format(underLying,datetime.date.today().strftime('%y-%m-%d')),
-                sheet_name = 'RSI={},日频'.format(RSI_arg,交易日+1))
+                sheet_name = 'RSI={},日频'.format(RSI_arg))
 excel输出()
 print('2017年收益：{:.2%}'.format(daily_pnl['2017'].T.sum().sum()))
 #%% 敏感性
