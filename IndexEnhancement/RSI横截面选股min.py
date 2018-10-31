@@ -144,14 +144,14 @@ def 图像绘制():
 def excel输出():
     df = pd.DataFrame({'Daily_pnl':daily_pnl.T.sum(), 'NAV':NAV},index = daily_pnl.index)
     df.to_excel('RSI横截面_{}纯多头_收益率明细_{}.xlsx'.format(underLying, datetime.date.today().strftime('%y-%m-%d')),
-                sheet_name = 'RSI={},周{},周频'.format(RSI_arg,交易日+1))
+                sheet_name = 'RSI={}, min'.format(RSI_arg))
     share.to_excel('RSI横截面_{}纯多头_持仓明细_{}.xlsx'.format(underLying,datetime.date.today().strftime('%y-%m-%d')),
-                sheet_name = 'RSI={},周{},周频'.format(RSI_arg,交易日+1))
+                sheet_name = 'RSI={}, min'.format(RSI_arg))
 excel输出()
 print('2017年收益：{:.2%}'.format(daily_pnl['2017'].T.sum().sum()))
 #%% 敏感性
-exec('daily_pnl_'+str(RSI_arg)+'_交易日'+str(交易日+1)+"=daily_pnl")
-exec('NAV_'+str(RSI_arg)+'_交易日'+str(交易日+1)+"=NAV")
+exec('daily_pnl_'+str(RSI_arg)+"=daily_pnl")
+exec('NAV_'+str(RSI_arg)+"=NAV")
 # RSI参数
 plt.figure(figsize=(15,9))
 for arg in range(15,31,5):

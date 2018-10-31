@@ -8,7 +8,8 @@
 - 市值大于100亿
 - 5e7
 - 每年重置资本金
-updated on 2018/10/27
+- RSI线 分为快慢
+updated on 2018/10/31
 """
 import datetime
 import pandas as pd
@@ -69,33 +70,63 @@ def 获取数据():
 获取数据()
 
 #%% 
-def 仓位计算和优化(arg=30):
-    global pos,RSI_arg,RSI
-    # TODO 港股多空
+def 仓位计算和优化(arg=30, fast = False):
+    global RSI_arg, RSI
+
     RSI_arg = arg
     RSI = price.apply(getattr(talib, 'RSI'), args=(RSI_arg,)).shift(1)
     RSI=RSI.replace(0,np.nan)
-    分母=abs(RSI.T-55).sum()
-    RSI_normalized = ((RSI.T-55)/分母).T
+#    if fast:
+#        RSI = 100-RSI
+    分母=abs(RSI.T-50).sum()
+    RSI_normalized = ((RSI.T-50)/分母).T
     RSI_normalized.fillna(0,inplace=True)
     pos = RSI_normalized[RSI_normalized>0]
-#rsi一快一慢 搭配使用？
-#在rsi都往上的时候，有可能rsi阈值需要提高到50以上，比如65，然后通过少选股票，增加仓位来做
-    pos[pos.T.sum()>0.1] *= 1.5
-    pos[pos.T.sum()>0.2] *= 1.2
-    pos[pos.T.sum()>0.3] *= 1.2
-#    pos[pos.T.sum()>0] *= 1.2
-#    pos[pos.T.sum()<0.4] *= 0.8
-#    pos[pos.T.sum()<0.5] *= 0.5
+
+    # rsi一快一慢 搭配使用？
+    # 当 慢pos的仓位很低时，使用快pos作为信号
+    # 快的pos可能需要不同的处理
+    # 在rsi都往上的时候，有可能rsi阈值需要提高到50以上，比如65，然后通过少选股票，增加仓位来做
+    # pos[pos.T.sum()>0.1] *= 1.5
+    # pos[pos.T.sum()>0.2] *= 1.2
+    # pos[pos.T.sum()>0.3] *= 1.2
+    pos[pos.T.sum()<0.4] *= 0.8
+    pos[pos.T.sum()<0.3] *= 0.5
+#if not fast:
+    pos[pos.T.sum()>0.6] *= 1.1
+    pos[pos.T.sum()>0.7] *= 1.1
+    pos[pos.T.sum()>0.8] *= 1.1
     # 将总和超出1的仓位，除以总和，归为1
     pos[pos.T.sum()>1] = pos[pos.T.sum()>1].divide(pos.T.sum()[pos.T.sum()>1],axis=0)
     pos.fillna(0, inplace = True)
-仓位计算和优化(30)
+
+    return pos
+posOriginal = 仓位计算和优化(30)
+posSlow = 仓位计算和优化(30)
+posFast = 仓位计算和优化(5, fast=True)
+posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
+posSlow[(posSlow.T.sum()>0.99) & (posFast.T.sum()<0.32)] = posFast
+
+def check(y):#看一下具体每一年的表现
+    year = str(y)
+    posSlow[year].T.sum().plot(c='r')
+    plt.twinx()
+    hs300[year].plot()
+    plt.show()
+    
+    posFast[year].T.sum().plot(c='r')
+    plt.twinx()
+    hs300[year].plot()
+    plt.show()
+    
+    NAV0[year].plot(c='r')
+    (hs300[year]/hs300[year].iloc[0]).plot()
+    plt.show()
 #%%
 # share记录了实时的仓位信息
 # 注意：交易时间为交易日的收盘前
-share = pos#[pos.index.dayofweek == 交易日]
-share = share.reindex(pos.index)
+share = posSlow#[pos.index.dayofweek == 交易日]
+share = share.reindex(posSlow.index)
 share.fillna(method='ffill',inplace=True)
 price_pct_change = price.pct_change().replace(np.inf,0)
 
@@ -128,7 +159,7 @@ NAV0 = (cum_pnl / CAPITAL)+1
 换手率=((share * price).divide((share * price).T.sum(),axis=0).diff().abs().T.sum() / 2)
 print("每日换手率 {:.2%}".format(换手率.mean()))
 print("年化换手率 {:.2%}".format(换手率.mean()*250))
-换手率.resample('y').sum()
+print(换手率.resample('y').sum())
 
 def 图像绘制():
     global hs300
@@ -153,7 +184,7 @@ def excel输出():
     df = pd.DataFrame({'Daily_pnl':daily_pnl.T.sum(),
                        '累计PNL':cum_pnl,
                        '账户价值':cum_pnl+CAPITAL,
-                       'NAV':NAV},
+                       'NAV':NAV0, 'NAV累计':NAV},
                        index = daily_pnl.index)
     df.to_excel('RSI横截面_{}纯多头_收益率明细_{}_日.xlsx'.format(underLying, datetime.date.today().strftime('%y-%m-%d')),
                 sheet_name = 'RSI={},日频'.format(RSI_arg))
