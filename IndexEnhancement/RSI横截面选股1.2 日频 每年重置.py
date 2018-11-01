@@ -21,6 +21,7 @@ import pymssql
 # pylint: disable=E1101,E1103
 # pylint: disable=W0212,W0231,W0703,W0622
 CAPITAL = 5e7
+TODAY = datetime.date.today().strftime('%Y-%m-%d')
 
 # 获取标的数据
 underLying = 'hs300'#zz500
@@ -28,23 +29,23 @@ if underLying == 'hs300':
     conn = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
     SQL = '''SELECT b.code FROM HS300COMPWEIGHT as b
     where b.[Date] BETWEEN '2018-07-01' and '2018-07-03' ORDER BY b.code'''
-    hs300 = get_index_day('000300.SH', '2007-02-01', datetime.date.today().strftime('%Y-%m-%d'), '1D')
+    hs300 = get_index_day('000300.SH', '2007-02-01', TODAY, '1D')
     hs300 = hs300.sclose
 elif underLying == 'zz500':
     conn = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='RawData')
     SQL = '''SELECT b.code FROM [中证500成分权重] as b
     where b.[Date] BETWEEN '2018-06-21' and '2018-07-03' '''
-    zz500 = get_index_day('000905.SH', '2007-02-01', datetime.date.today().strftime('%Y-%m-%d'), '1D')
+    zz500 = get_index_day('000905.SH', '2007-02-01', TODAY, '1D')
     zz500 = zz500.sclose
 elif underLying == 'hsi':
-    hsi = get_hk_index_day('HSI.HI', '2007-02-01', datetime.date.today().strftime('%Y-%m-%d'), '1D')
+    hsi = get_hk_index_day('HSI.HI', '2007-02-01', TODAY, '1D')
     hsi = hsi.sclose
 elif underLying == 'zz800':
     conn1 = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
     SQL1 = '''SELECT b.code FROM HS300COMPWEIGHT as b where b.[Date] BETWEEN '2018-07-01' and '2018-07-03' ORDER BY b.code'''
     conn2 = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='RawData')
     SQL2 = '''SELECT b.code FROM [中证500成分权重] as b where b.[Date] BETWEEN '2018-06-21' and '2018-07-03' '''
-    zz800 =  get_index_day('000906.SH', '2007-02-01', datetime.date.today().strftime('%Y-%m-%d'), '1D')
+    zz800 =  get_index_day('000906.SH', '2007-02-01', TODAY, '1D')
     zz800 = zz800.sclose
 if underLying=='hs300' or underLying=='zz500':
     data = pd.read_sql(SQL, conn)
@@ -62,7 +63,7 @@ del data
 def 获取数据():
     global price
     START_DATE = '2007-02-01'
-    END_DATE = datetime.date.today().strftime('%Y-%m-%d')
+    END_DATE = TODAY
     print('正在获取数据...自 {} 至 {}'.format(START_DATE, END_DATE))
     price = get_muti_close_day(pool, START_DATE, END_DATE, HK=(underLying=='hsi'))
     price.fillna(method="ffill", inplace=True)
@@ -74,7 +75,7 @@ def 仓位计算和优化(arg=30, fast = False):
     global RSI_arg, RSI
 
     RSI_arg = arg
-    RSI = price.apply(getattr(talib, 'RSI'), args=(RSI_arg,)).shift(1)
+    RSI = price.apply(getattr(talib, 'RSI'), args=(RSI_arg,))
     RSI=RSI.replace(0,np.nan)
 #    if fast:
 #        RSI = 100-RSI
@@ -142,7 +143,7 @@ for year in range(2008,2019):
         except:
             continue
         share[this_month] = temp.fillna(method='ffill')
-        daily_pnl = daily_pnl.append(price_pct_change[this_month] * (share[this_month]*price[this_month]))
+        daily_pnl = daily_pnl.append(price_pct_change[this_month] * (share[this_month].shift(1)*price[this_month]))
         initialCaptial += daily_pnl[this_month].T.sum().sum()
 #        print(this_month, initialCaptial)
 # 手续费，卖出时一次性收取
@@ -186,9 +187,9 @@ def excel输出():
                        '账户价值':cum_pnl+CAPITAL,
                        'NAV':NAV0, 'NAV累计':NAV},
                        index = daily_pnl.index)
-    df.to_excel('RSI横截面_{}纯多头_收益率明细_{}_日.xlsx'.format(underLying, datetime.date.today().strftime('%y-%m-%d')),
+    df.to_excel('RSI横截面_{}纯多头_收益率明细_{}_日.xlsx'.format(underLying, TODAY),
                 sheet_name = 'RSI={},日频'.format(RSI_arg))
-    share.to_excel('RSI横截面_{}纯多头_持仓明细_{}_日.xlsx'.format(underLying,datetime.date.today().strftime('%y-%m-%d')),
+    share.to_excel('RSI横截面_{}纯多头_持仓明细_{}_日.xlsx'.format(underLying,TODAY),
                 sheet_name = 'RSI={},日频'.format(RSI_arg))
 excel输出()
 print('2017年收益：{:.2%}'.format(daily_pnl['2017'].T.sum().sum()))

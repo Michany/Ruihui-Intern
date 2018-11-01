@@ -9,7 +9,9 @@
 - 5e7
 - 每年重置资本金
 - RSI线 分为快慢
-updated on 2018/10/31
+- price 分为交易/停牌，需要区分对待；对于停牌的，需要用nan，并在计算中不予以考虑
+
+updated on 2018/11/1
 """
 import datetime
 import pandas as pd
@@ -61,12 +63,12 @@ del data
 
 # 
 def 获取数据():
-    global price
+    global price, priceFill
     START_DATE = '2007-02-01'
     END_DATE = TODAY
     print('正在获取数据...自 {} 至 {}'.format(START_DATE, END_DATE))
     price = get_muti_close_day(pool, START_DATE, END_DATE, HK=(underLying=='hsi'))
-#    price.fillna(method="ffill", inplace=True)
+    priceFill = price.fillna(method="ffill")
     print("Historical Data Loaded!")
 获取数据()
 
@@ -75,8 +77,9 @@ def 仓位计算和优化(arg=30, fast = False):
     global RSI_arg, RSI
 
     RSI_arg = arg
-    RSI = price.apply(getattr(talib, 'RSI'), args=(RSI_arg,)).shift(1)
-    RSI=RSI.replace(0,np.nan)
+    RSI = priceFill.apply(talib.RSI, args=(RSI_arg,))
+
+    RSI[price.isna()] = 50
 #    if fast:
 #        RSI = 100-RSI
     分母=abs(RSI.T-50).sum()
@@ -143,7 +146,8 @@ for year in range(2008,2019):
         except:
             continue
         share[this_month] = temp.fillna(method='ffill')
-        daily_pnl = daily_pnl.append(price_pct_change[this_month] * (share[this_month]*price[this_month]))
+        # 当日收益 = 昨日share * 今日涨跌幅
+        daily_pnl = daily_pnl.append(price_pct_change[this_month] * (share[this_month].shift(1)*price[this_month]))
         initialCaptial += daily_pnl[this_month].T.sum().sum()
 #        print(this_month, initialCaptial)
 # 手续费，卖出时一次性收取
@@ -177,7 +181,7 @@ def 图像绘制():
     # plt.title('RSI参数={}，日频，无手续费'.format(RSI_arg),fontsize=15)
     plt.title('RSI参数={}，日频，手续费{:.1f}‰'.format(RSI_arg, fee_rate*1000), fontsize=15)
     # plt.title('RSI参数={}，交易日={}，手续费{:.1f}‰'.format(RSI_arg, 交易日+1, fee_rate*1000), fontsize=15)
-    plt.grid(axis='x')
+    plt.grid(axis='both')
     plt.show()
 图像绘制()
 #%% 
@@ -199,8 +203,8 @@ from WindPy import *
 w.start()
 data_today = pd.DataFrame()
 for i in pool:
-    print(i)
-    rawdata = w.wsi(i, "close", "2018-10-31 14:55:00", "2018-10-31 14:56:00", "")
+    print(i, end = '\r')
+    rawdata = w.wsi(i, "close", "%s 14:55:00" % TODAY, "%s 14:56:00" % TODAY, "")
     rawdata = pd.DataFrame({i:rawdata.Data[0]},index=rawdata.Times)
     data_today = pd.concat([data_today, rawdata], axis=1)
 data_close = data_today[data_today.index.minute==55]
@@ -231,7 +235,7 @@ for i in range(len(signal)):
     entrust_bs = int(amount<0)+1
     entrust_prop = 'R' if exchange_type==1 else 'U'
     csv.loc[i] = [i+1, 7047709, exchange_type, symbol[:-3], 
-                  entrust_bs, entrust_prop, data_today[symbol][0],
+                  entrust_bs, entrust_prop, data_close[symbol][0],
                   abs(amount), '']
 import datetime
 csv.to_csv(r'\\192.168.0.29\Stock\orders\RSI\order_{}.{}00000.csv'.format('RSItest', datetime.datetime.now().strftime('%Y%m%d%H%M'))

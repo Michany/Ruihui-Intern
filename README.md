@@ -115,7 +115,8 @@ Projects listed as follows (in chronical order):
     Two Branches
     ------------
     - Low frequency: weekly, daily  
-      _stable version: RSI横截面选股1.2 周频.py_
+      _stable version: RSI横截面选股1.2 周频.py_  
+      _stable version: RSI横截面选股1.2 日频 每年重置.py_
   
     - High frequency: 1 hour  
       _stable version: RSI横截面选股min.py_
