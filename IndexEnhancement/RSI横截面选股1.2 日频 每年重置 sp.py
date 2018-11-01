@@ -63,14 +63,14 @@ del data
 
 # 
 def 获取数据():
-    global price, priceFill
     START_DATE = '2007-02-01'
     END_DATE = TODAY
     print('正在获取数据...自 {} 至 {}'.format(START_DATE, END_DATE))
     price = get_muti_close_day(pool, START_DATE, END_DATE, HK=(underLying=='hsi'))
     priceFill = price.fillna(method="ffill")
     print("Historical Data Loaded!")
-获取数据()
+    return price, priceFill
+price, priceFill = 获取数据()
 
 #%% 
 def 仓位计算和优化(arg=30, fast = False):
@@ -80,17 +80,12 @@ def 仓位计算和优化(arg=30, fast = False):
     RSI = priceFill.apply(talib.RSI, args=(RSI_arg,))
 
     RSI[price.isna()] = 50
-#    if fast:
-#        RSI = 100-RSI
+
     分母=abs(RSI.T-50).sum()
     RSI_normalized = ((RSI.T-50)/分母).T
     RSI_normalized.fillna(0,inplace=True)
     pos = RSI_normalized[RSI_normalized>0]
 
-    # rsi一快一慢 搭配使用？
-    # 当 慢pos的仓位很低时，使用快pos作为信号
-    # 快的pos可能需要不同的处理
-    # 在rsi都往上的时候，有可能rsi阈值需要提高到50以上，比如65，然后通过少选股票，增加仓位来做
     # pos[pos.T.sum()>0.1] *= 1.5
     # pos[pos.T.sum()>0.2] *= 1.2
     # pos[pos.T.sum()>0.3] *= 1.2
@@ -196,7 +191,6 @@ def excel输出():
     share.to_excel('RSI横截面_{}纯多头_持仓明细_{}_日.xlsx'.format(underLying, TODAY),
                 sheet_name = 'RSI={},日频'.format(RSI_arg))
 excel输出()
-print('2017年收益：{:.2%}'.format(daily_pnl['2017'].T.sum().sum()))
 
 #%% 获取实时数据
 from WindPy import *
@@ -211,17 +205,18 @@ data_close = data_today[data_today.index.minute==55]
 data_close = data_close.astype(float)
 
 price = pd.concat([price, data_close], sort=False)
+priceFill = price.fillna(method='ffill')
 print("New Data Loaded!", TODAY)
 
+# 计算新仓位
 posOriginal = 仓位计算和优化(30)
 posSlow = 仓位计算和优化(30)
 posFast = 仓位计算和优化(5, fast=True)
 posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
 posSlow[(posSlow.T.sum()>0.99) & (posFast.T.sum()<0.32)] = posFast
 
-share = posSlow
-initialCaptial = 1e6
-share = round(share * initialCaptial/ price, -2)
+# 计算新持股数
+share = round(posSlow * initialCaptial/ price, -2)
 
 #写文件
 signal = share.diff().iloc[-1]
