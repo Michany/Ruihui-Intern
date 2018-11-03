@@ -142,7 +142,7 @@ for year in range(2008,2019):
             continue
         share[this_month] = temp.fillna(method='ffill')
         # 当日收益 = 昨日share * 今日涨跌幅
-        daily_pnl = daily_pnl.append(price_pct_change[this_month] * (share[this_month].shift(1)*price[this_month]))
+        daily_pnl = daily_pnl.append(price_pct_change[this_month] * (share[this_month]*price[this_month]).shift(1))
         initialCaptial += daily_pnl[this_month].T.sum().sum()
 #        print(this_month, initialCaptial)
 # 手续费，卖出时一次性收取
