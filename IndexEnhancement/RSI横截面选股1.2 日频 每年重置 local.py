@@ -92,8 +92,8 @@ price_change = priceFill.diff()
 
 #近似 & 按月复利 按年重置
 daily_pnl=pd.DataFrame()
-share_last_month = pd.DataFrame(columns=share.columns, index=share.index[0])
-share_last_month = 0
+share_last_month = pd.DataFrame(columns=share.columns, index=share.index[0:1])
+share_last_month.fillna(0, inplace=True)
 for year in range(2008,2019):
     initialCaptial = CAPITAL
     for month in range(1,13):
@@ -154,6 +154,7 @@ def excel输出():
                        '账户价值':cum_pnl+CAPITAL,
                        'NAV':NAV0, 'NAV累计':NAV},
                        index = daily_pnl.index)
+    df.index.name = 'date'
     df.to_excel('RSI横截面_{}纯多头_收益率明细_{}_日.xlsx'.format(underLying, TODAY),
                 sheet_name = 'RSI={},日频'.format(RSI_arg))
     
