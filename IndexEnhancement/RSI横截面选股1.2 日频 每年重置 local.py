@@ -27,8 +27,8 @@ TODAY = datetime.date.today().strftime('%Y-%m-%d')
 
 # 获取数据
 underLying = 'hs300'#zz500
-hs300 = pd.read_hdf("E:\RH\Historical Data\PriceData_1101.h5",'hs300')
-price = pd.read_hdf("E:\RH\Historical Data\PriceData_1101.h5")
+hs300 = pd.read_hdf(r"C:\Users\meiconte\Documents\RH\IndexEnhancement\PriceData_1101.h5",'hs300')
+price = pd.read_hdf(r"C:\Users\meiconte\Documents\RH\IndexEnhancement\PriceData_1101.h5",'df')
 priceFill = price.fillna(method='ffill')
 
 
