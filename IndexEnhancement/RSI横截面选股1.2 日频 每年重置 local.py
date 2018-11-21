@@ -18,8 +18,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import talib
-from data_reader import get_muti_close_day, get_index_day, get_hk_index_day
-import pymssql
+#from data_reader import get_muti_close_day, get_index_day, get_hk_index_day
+#import pymssql
 # pylint: disable=E1101,E1103
 # pylint: disable=W0212,W0231,W0703,W0622
 CAPITAL = 5e7
@@ -27,8 +27,8 @@ TODAY = datetime.date.today().strftime('%Y-%m-%d')
 
 # 获取数据
 underLying = 'hs300'#zz500
-hs300 = pd.read_hdf(r"C:\Users\meiconte\Documents\RH\IndexEnhancement\PriceData_1101.h5",'hs300')
-price = pd.read_hdf(r"C:\Users\meiconte\Documents\RH\IndexEnhancement\PriceData_1101.h5",'df')
+hs300 = pd.read_hdf(r"C:\Users\70242\Documents\Python\Ruihui-Intern\IndexEnhancement\PriceData_1101.h5",'hs300')
+price = pd.read_hdf(r"C:\Users\70242\Documents\Python\Ruihui-Intern\IndexEnhancement\PriceData_1101.h5",'df')
 priceFill = price.fillna(method='ffill')
 
 
