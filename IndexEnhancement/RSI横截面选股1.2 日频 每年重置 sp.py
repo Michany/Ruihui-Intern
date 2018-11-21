@@ -131,23 +131,30 @@ price_pct_change = price.pct_change().replace(np.inf,0)
 
 #近似 & 按月复利 按年重置
 daily_pnl=pd.DataFrame()
-#capitalBalance = pd.Series()
+share_last_month = pd.DataFrame(columns=share.columns, index=share.index[0:1])
+share_last_month.fillna(0, inplace=True)
 for year in range(2008,2019):
     initialCaptial = CAPITAL
     for month in range(1,13):
         this_month = str(year)+'-'+str(month)
+        
         try:
             temp = round(share[this_month] * initialCaptial/ price,-2)
         except:
             continue
+        
         share[this_month] = temp.fillna(method='ffill')
-        # 当日收益 = 昨日share * 今日涨跌幅
-        daily_pnl = daily_pnl.append(price_pct_change[this_month] * (share[this_month]*price[this_month]).shift(1))
+        share_last_day = share[this_month].shift(1)
+        share_last_day.iloc[0] = share_last_month.iloc[-1] * price_change.iloc[-1]
+        share_last_month = share[this_month]
+        # 当日收益 = 昨日share * 今日涨跌幅 ; 每月第一行缺失
+
+        daily_pnl = daily_pnl.append(price_change[this_month] * share_last_day)
         initialCaptial += daily_pnl[this_month].T.sum().sum()
 #        print(this_month, initialCaptial)
 # 手续费，卖出时一次性收取
 fee_rate = 0.0013
-fee = (share.diff()[share<share.shift(1)] * price * fee_rate).fillna(0).abs()
+fee = (share.diff()[share<share.shift(1)] * priceFill * fee_rate).fillna(0).abs()
 daily_pnl -= fee
 # 按年清空
 cum_pnl = pd.DataFrame(daily_pnl.T.sum(),columns=['pnl'])
@@ -186,9 +193,17 @@ def excel输出():
                        '账户价值':cum_pnl+CAPITAL,
                        'NAV':NAV0, 'NAV累计':NAV},
                        index = daily_pnl.index)
+    df.index.name = 'date'
     df.to_excel('RSI横截面_{}纯多头_收益率明细_{}_日.xlsx'.format(underLying, TODAY),
                 sheet_name = 'RSI={},日频'.format(RSI_arg))
-    share.to_excel('RSI横截面_{}纯多头_持仓明细_{}_日.xlsx'.format(underLying, TODAY),
+    
+    df = daily_pnl.join(share, lsuffix='_pnl',rsuffix='_share')
+    df = df.join(price,rsuffix='_price')
+    df = df.join(RSI_Fast, rsuffix='_RSI_Fast')
+    df = df.join(RSI_Slow, rsuffix='_RSI_Slow')
+    df.sort_index(axis=1,inplace=True)
+    df.columns = pd.MultiIndex.from_product([daily_pnl.columns,['price','RSI_Fast','RSI_Slow','daily_pnl','share']])
+    df.to_excel('RSI横截面_{}纯多头_持仓明细_{}_日.xlsx'.format(underLying, TODAY),
                 sheet_name = 'RSI={},日频'.format(RSI_arg))
 excel输出()
 
@@ -209,11 +224,10 @@ priceFill = price.fillna(method='ffill')
 print("New Data Loaded!", TODAY)
 
 # 计算新仓位
-posOriginal = 仓位计算和优化(30)
-posSlow = 仓位计算和优化(30)
-posFast = 仓位计算和优化(5, fast=True)
+posSlow = 仓位计算和优化(40)
+posFast = 仓位计算和优化(10, fast=True)
 posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
-posSlow[(posSlow.T.sum()>0.99) & (posFast.T.sum()<0.32)] = posFast
+posSlow[(posSlow.T.sum()>0.95) & (posFast.T.sum()<0.32)] = posFast
 
 # 计算新持股数
 share = round(posSlow * initialCaptial/ price, -2)
