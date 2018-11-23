@@ -11,7 +11,7 @@
 - RSI线 分为快慢
 - price 分为交易/停牌，需要区分对待；对于停牌的，需要用nan，并在计算中不予以考虑
 
-updated on 2018/11/1
+updated on 2018/11/23
 """
 import datetime
 import pandas as pd
@@ -27,8 +27,8 @@ TODAY = datetime.date.today().strftime('%Y-%m-%d')
 
 # 获取数据
 underLying = 'hs300'#zz500
-hs300 = pd.read_hdf(r"C:\Users\70242\Documents\Python\Ruihui-Intern\IndexEnhancement\PriceData_1101.h5",'hs300')
-price = pd.read_hdf(r"C:\Users\70242\Documents\Python\Ruihui-Intern\IndexEnhancement\PriceData_1101.h5",'df')
+hs300 = pd.read_hdf(r"C:\Users\70242\Documents\Python\Ruihui-Intern\IndexEnhancement\PriceData_1123.h5",'hs300')
+price = pd.read_hdf(r"C:\Users\70242\Documents\Python\Ruihui-Intern\IndexEnhancement\PriceData_1123.h5",'price')
 priceFill = price.fillna(method='ffill')
 
 
@@ -185,8 +185,8 @@ priceFill = price.fillna(method='ffill')
 print("New Data Loaded!", TODAY)
 
 # 计算新仓位
-posSlow = 仓位计算和优化(40)
-posFast = 仓位计算和优化(10, fast=True)
+posSlow, RSI_Slow = 仓位计算和优化(40)
+posFast, RSI_Fast = 仓位计算和优化(10, fast=True)
 posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
 posSlow[(posSlow.T.sum()>0.95) & (posFast.T.sum()<0.32)] = posFast
 
