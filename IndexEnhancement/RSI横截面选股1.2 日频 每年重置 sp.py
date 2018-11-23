@@ -212,11 +212,11 @@ from WindPy import *
 w.start()
 data_today = pd.DataFrame()
 for i in pool:
-    print("Fetching Data for", i, end = '\r')
-    rawdata = w.wsi(i, "close", "%s 14:55:00" % TODAY, "%s 14:56:00" % TODAY, "")
+    print("Fetching Data for", i)
+    rawdata = w.wsi(i, "close", "%s 14:54:00" % TODAY, "%s 14:55:00" % TODAY, "")
     rawdata = pd.DataFrame({i:rawdata.Data[0]},index=rawdata.Times)
     data_today = pd.concat([data_today, rawdata], axis=1)
-data_close = data_today[data_today.index.minute==55]
+data_close = data_today[data_today.index.minute==54]
 data_close = data_close.astype(float)
 # 将新老数据拼接起来
 price = pd.concat([price, data_close], sort=False)
@@ -248,7 +248,7 @@ def generate_csv_file(扫单软件='cats'):
             委托价格 = price[symbol].iloc[-1]
             exchange_type = (symbol[-2:]=='SZ') +1
             委托类型 = 'R' if exchange_type==1 else 'U'
-            csv.loc[i] = ['O', 'S0', 'RSI_test', symbol, 
+            csv.loc[i] = ['O', 'S0', 'RSI', symbol, 
                           abs(amount), 委托方向, 委托价格, 委托类型, '']
     elif 扫单软件=='other':
         csv = pd.DataFrame(columns=['local_entrust_no','fund_account','exchange_type','stock_code','entrust_bs','entrust_prop','entrust_price','entrust_amount','batch_no'])
