@@ -2,7 +2,7 @@
 """
 @author: Michael Wang
 
-`Based on VeCMOon CMO`
+`Based on Version CMO`
 
 updated on 2018/11/20
 """
