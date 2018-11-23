@@ -6,12 +6,12 @@
 
 - 港股
 - 市值大于100亿
-- 5e7
+- 初始资本金 5e7
 - 每年重置资本金
 - RSI线 分为快慢
 - price 分为交易/停牌，需要区分对待；对于停牌的，需要用nan，并在计算中不予以考虑
-
-updated on 2018/11/1
+- 模拟盘PnL监测
+updated on 2018/11/23
 """
 import datetime
 import pandas as pd
@@ -211,11 +211,27 @@ excel输出()
 from WindPy import *
 w.start()
 data_today = pd.DataFrame()
-for i in pool:
-    print("Fetching Data for", i, end = '\r')
-    rawdata = w.wsi(i, "close", "%s 14:55:00" % TODAY, "%s 14:56:00" % TODAY, "")
-    rawdata = pd.DataFrame({i:rawdata.Data[0]},index=rawdata.Times)
-    data_today = pd.concat([data_today, rawdata], axis=1)
+# 需要加快数据提取速度，改为每次提取10个
+batch = 10
+batchNo = len(pool)//10
+batch_data = pd.DataFrame()
+for i in range(batchNo):
+    symbol = ""
+    for j in range(batch):
+        symbol += pool[i*10+j] + ','
+    symbol = symbol[:-1] # 去掉最后的逗号
+    print("Fetching Data for", symbol)
+    rawdata = w.wsi(symbol, "close", "%s 14:55:00" % TODAY, "%s 14:56:00" % TODAY, "")
+    rawdata = pd.DataFrame({rawdata.Data[0][0]:rawdata.Data[2]},index=rawdata.Data[1])
+    # rawdata 样例：
+    #            2018-11-23 14:54:00
+    # 000001.SZ                10.32
+    # 000002.SZ                24.87
+    # 000060.SZ                 4.14
+    # 000063.SZ                19.81
+    # 000069.SZ                 6.11
+    batch_data = pd.concat([batch_data, rawdata.T], axis=1)
+data_today = pd.concat([data_today, batch_data], axis=1)
 data_close = data_today[data_today.index.minute==55]
 data_close = data_close.astype(float)
 # 将新老数据拼接起来
