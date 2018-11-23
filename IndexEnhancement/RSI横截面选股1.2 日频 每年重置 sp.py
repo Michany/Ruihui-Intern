@@ -264,7 +264,7 @@ def generate_csv_file(扫单软件='cats'):
             委托价格 = price[symbol].iloc[-1]
             exchange_type = (symbol[-2:]=='SZ') +1
             委托类型 = 'R' if exchange_type==1 else 'U'
-            csv.loc[i] = ['O', 'S0', 'RSI_test', symbol, 
+            csv.loc[i] = ['O', 'S0', 'RSI', symbol, 
                           abs(amount), 委托方向, 委托价格, 委托类型, '']
     elif 扫单软件=='other':
         csv = pd.DataFrame(columns=['local_entrust_no','fund_account','exchange_type','stock_code','entrust_bs','entrust_prop','entrust_price','entrust_amount','batch_no'])
