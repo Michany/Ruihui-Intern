@@ -268,3 +268,12 @@ csv = generate_csv_file()
 import datetime
 csv.to_csv(r'\\192.168.0.29\Stock\orders\RSI\order_{}.{}00000.csv'.format('RSItest', datetime.datetime.now().strftime('%Y%m%d%H%M'))
             , header=False, index=False)
+
+#%% 模拟盘PnL跟踪
+import openpyxl
+tracing_file = openpyxl.load_workbook("模拟盘PnL跟踪.xlsx")
+tracing_sheet = tracing_file.active
+today_share_record = [share.iloc[-1].name] # 日期时间
+today_share_record += list(share.iloc[-1].values) # 持仓数
+tracing_sheet.append(list(today_share_record))
+tracing_file.save("模拟盘PnL跟踪.xlsx")
