@@ -99,7 +99,13 @@ Projects listed as follows (in chronical order):
     - __Could be rounded to 100 shares.__ That is to say, with only ￥1 million, you can actually apply the strategy.
     - __Low ratio of turnover.__ No need to adjust position in high frequency. Actually you need to do it only weekly.  
     - __Thursday is a good day.__  
-    
+   
+   Bug fixed
+   ---------
+    - 每个月初
+    - pnl计算
+    - TODO：成份股调整
+   
    Limitations
    -----------
     - __Can hardly beat the soar market.__   
@@ -107,7 +113,7 @@ Projects listed as follows (in chronical order):
       Although we can adjust parameters to address to this problem, it will harm the performance at the bear market.  
       Unless there's coresponding hedge strategy.
 
-      __Maybe it is because $\alpha$ is missed
+      __Maybe it is because $\alpha$ is missed__
 
     - __A lot of fees.__  
       They say sometimes fee is a good thing when negotiating with the dealers/brokers...
@@ -116,7 +122,9 @@ Projects listed as follows (in chronical order):
     ------------
     - Low frequency: weekly, daily  
       _stable version: RSI横截面选股1.2 周频.py_  
-      _stable version: RSI横截面选股1.2 日频 每年重置.py_
+      
+    - Various bugs fixed:  
+      _stable version: RSI横截面选股1.2 日频 每年重置 local.py_
   
     - High frequency: 1 hour  
       _stable version: RSI横截面选股min.py_
