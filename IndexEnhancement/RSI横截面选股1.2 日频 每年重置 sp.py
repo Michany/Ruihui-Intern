@@ -22,7 +22,7 @@ from data_reader import get_muti_close_day, get_index_day, get_hk_index_day
 import pymssql
 # pylint: disable=E1101,E1103
 # pylint: disable=W0212,W0231,W0703,W0622
-CAPITAL = 5e7
+CAPITAL = 1e6
 TODAY = datetime.date.today().strftime('%Y-%m-%d')
 
 # 获取标的数据
