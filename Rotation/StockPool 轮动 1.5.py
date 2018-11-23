@@ -8,16 +8,16 @@ Based on Version 1.4
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import talib
 import time
 from data_reader import get_muti_close_day, get_index_day, get_stock_day
+import datetime
 
 TYPE = 0 # 0 for "index"; 1 for "stock"
 STOCK_POOL = ['000016.SH','000905.SH','000009.SH','000991.SH','000935.SH','000036.SH']
 # STOCK_POOL = ['600309.SH', '600585.SH', '000538.SZ', '000651.SZ', '600104.SH','601888.SH']
 # STOCK_POOL = ["600104.SH"]
 START_DATE = "2008-01-01"
-END_DATE = "2018-11-16"
+END_DATE = datetime.date.today().strftime('%Y-%m-%d')
 INITIAL_CAPITAL = 1000
 # CAPITAL = INITIAL_CAPITAL / 3
 DURATION = 250
