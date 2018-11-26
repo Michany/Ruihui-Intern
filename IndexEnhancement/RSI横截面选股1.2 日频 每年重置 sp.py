@@ -63,7 +63,7 @@ del data
 
 # 
 def 获取数据():
-    START_DATE = '2007-02-01'
+    START_DATE = '2008-02-01'
     END_DATE = TODAY
     print('正在获取数据...自 {} 至 {}'.format(START_DATE, END_DATE))
     price = get_muti_close_day(pool, START_DATE, END_DATE, HK=(underLying=='hsi'))
@@ -224,8 +224,8 @@ priceFill = price.fillna(method='ffill')
 print("New Data Loaded!", TODAY)
 
 # 计算新仓位
-posSlow, RSI_Slow = 仓位计算和优化(40)
-posFast, RSI_Fast = 仓位计算和优化(10, fast=True)
+posSlow = 仓位计算和优化(40)
+posFast = 仓位计算和优化(10, fast=True)
 posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
 posSlow[(posSlow.T.sum()>0.95) & (posFast.T.sum()<0.32)] = posFast
 
