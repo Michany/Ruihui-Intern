@@ -27,10 +27,19 @@ TODAY = datetime.date.today().strftime('%Y-%m-%d')
 
 # 获取数据
 underLying = 'hs300'#zz500
-hs300 = pd.read_hdf(r"C:\Users\70242\Documents\Python\Ruihui-Intern\IndexEnhancement\PriceData_1123.h5",'hs300')
-price = pd.read_hdf(r"C:\Users\70242\Documents\Python\Ruihui-Intern\IndexEnhancement\PriceData_1123.h5",'price')
+hs300 = pd.read_hdf(r"PriceData_1120_FullPool.h5",'hs300')
+price = pd.read_hdf(r"PriceData_1120_FullPool.h5",'price')
+component = pd.read_hdf(r"PriceData_1120_FullPool.h5",'component')
 priceFill = price.fillna(method='ffill')
 
+#%%
+#思路：把不在当前成份股列表的股票标记为nan
+compo = component.pivot_table(values='weight', index = 'Date', columns='code')
+compo = compo.fillna(0)
+compo = compo.reindex(price.index, method = 'ffill') #不能ffill
+
+price[compo==0] = np.nan
+priceFill[compo==0] = np.nan
 
 #%% 
 def 仓位计算和优化(arg=30, fast = False):
@@ -114,7 +123,7 @@ for year in range(2008,2019):
         initialCaptial += daily_pnl[this_month].T.sum().sum()
 #        print(this_month, initialCaptial)
 # 手续费，卖出时一次性收取
-fee_rate = 0.0013
+fee_rate = 0.00
 fee = (share.diff()[share<share.shift(1)] * priceFill * fee_rate).fillna(0).abs()
 daily_pnl -= fee
 # 按年清空
