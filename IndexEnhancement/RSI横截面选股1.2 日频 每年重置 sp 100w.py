@@ -22,7 +22,7 @@ from data_reader import get_muti_close_day, get_index_day, get_hk_index_day
 import pymssql
 # pylint: disable=E1101,E1103
 # pylint: disable=W0212,W0231,W0703,W0622
-CAPITAL = 5e7
+CAPITAL = 1e6
 TODAY = datetime.date.today().strftime('%Y-%m-%d')
 
 # 获取标的数据
@@ -287,9 +287,9 @@ csv.to_csv(r'\\192.168.0.29\Stock\orders\RSI\order_{}.{}00000.csv'.format('RSIte
 
 #%% 模拟盘PnL跟踪
 import openpyxl
-tracing_file = openpyxl.load_workbook("模拟盘PnL跟踪.xlsx")
+tracing_file = openpyxl.load_workbook("模拟盘PnL跟踪 - 100w.xlsx")
 tracing_sheet = tracing_file.active
 today_share_record = [share.iloc[-1].name] # 日期时间
 today_share_record += list(share.iloc[-1].values) # 持仓数
 tracing_sheet.append(list(today_share_record))
-tracing_file.save("模拟盘PnL跟踪.xlsx")
+tracing_file.save("模拟盘PnL跟踪 - 100w.xlsx")
