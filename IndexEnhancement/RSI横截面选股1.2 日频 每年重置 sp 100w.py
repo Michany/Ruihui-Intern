@@ -11,7 +11,8 @@
 - RSI线 分为快慢
 - price 分为交易/停牌，需要区分对待；对于停牌的，需要用nan，并在计算中不予以考虑
 - 模拟盘PnL监测
-updated on 2018/11/23
+- 新数据进来以后算上手续费
+updated on 2018/11/27
 """
 import datetime
 import pandas as pd
@@ -63,7 +64,7 @@ del data
 
 # 
 def 获取数据():
-    START_DATE = '2008-02-01'
+    START_DATE = '2007-02-01'
     END_DATE = TODAY
     print('正在获取数据...自 {} 至 {}'.format(START_DATE, END_DATE))
     price = get_muti_close_day(pool, START_DATE, END_DATE, HK=(underLying=='hsi'))
@@ -100,9 +101,9 @@ def 仓位计算和优化(arg=30, fast = False):
     pos.fillna(0, inplace = True)
 
     return pos
-posOriginal = 仓位计算和优化(30)
-posSlow = 仓位计算和优化(30)
-posFast = 仓位计算和优化(5, fast=True)
+posOriginal = 仓位计算和优化(40)
+posSlow = 仓位计算和优化(40)
+posFast = 仓位计算和优化(10, fast=True)
 posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
 posSlow[(posSlow.T.sum()>0.99) & (posFast.T.sum()<0.32)] = posFast
 
@@ -221,7 +222,7 @@ for i in range(batchNo):
         symbol += pool[i*10+j] + ','
     symbol = symbol[:-1] # 去掉最后的逗号
     print("Fetching Data for", symbol)
-    rawdata = w.wsi(symbol, "close", "%s 14:55:00" % TODAY, "%s 14:56:00" % TODAY, "")
+    rawdata = w.wsi(symbol, "close", "%s 14:00:00" % TODAY, "%s 14:01:00" % TODAY, "")
     rawdata = pd.DataFrame({rawdata.Data[0][0]:rawdata.Data[2]},index=rawdata.Data[1])
     # rawdata 样例：
     #            2018-11-23 14:54:00
@@ -232,13 +233,14 @@ for i in range(batchNo):
     # 000069.SZ                 6.11
     batch_data = pd.concat([batch_data, rawdata.T], axis=1)
 data_today = pd.concat([data_today, batch_data], axis=1)
-data_close = data_today[data_today.index.minute==55]
+data_close = data_today#[data_today.index.minute==55]
 data_close = data_close.astype(float)
 # 将新老数据拼接起来
 price = pd.concat([price, data_close], sort=False)
 priceFill = price.fillna(method='ffill')
 print("New Data Loaded!", TODAY)
 
+#%%
 # 计算新仓位
 posSlow = 仓位计算和优化(40)
 posFast = 仓位计算和优化(10, fast=True)
@@ -253,6 +255,10 @@ signal = share.diff().iloc[-1]
 signal.dropna(inplace=True)
 signal = signal[signal!=0]
 
+# 计算手续费
+fee_today = (signal[signal<0] * price.iloc[-1] * fee_rate).fillna(0).abs()
+daily_pnl.loc[signal.name] = share.iloc[-2] * price.diff().iloc[-1]
+daily_pnl.iloc[-1] -= fee_today
 # 将交易信号文件写入扫单文件csv
 def generate_csv_file(扫单软件='cats'):
     if 扫单软件=='cats':

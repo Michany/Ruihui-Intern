@@ -11,7 +11,8 @@
 - RSI线 分为快慢
 - price 分为交易/停牌，需要区分对待；对于停牌的，需要用nan，并在计算中不予以考虑
 - 模拟盘PnL监测
-updated on 2018/11/23
+- Wind数据 10个一组 获取
+updated on 2018/11/27
 """
 import datetime
 import pandas as pd
@@ -74,7 +75,7 @@ price, priceFill = 获取数据()
 
 #%% 
 def 仓位计算和优化(arg=30, fast = False):
-    global RSI_arg, RSI
+    global RSI_arg
 
     RSI_arg = arg
     RSI = priceFill.apply(talib.RSI, args=(RSI_arg,))
@@ -99,10 +100,10 @@ def 仓位计算和优化(arg=30, fast = False):
     pos[pos.T.sum()>1] = pos[pos.T.sum()>1].divide(pos.T.sum()[pos.T.sum()>1],axis=0)
     pos.fillna(0, inplace = True)
 
-    return pos
-posOriginal = 仓位计算和优化(30)
-posSlow = 仓位计算和优化(30)
-posFast = 仓位计算和优化(5, fast=True)
+    return pos, RSI
+posOriginal = 仓位计算和优化(40)
+posSlow, RSI_Slow = 仓位计算和优化(40)
+posFast, RSI_Fast = 仓位计算和优化(10, fast=True)
 posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
 posSlow[(posSlow.T.sum()>0.99) & (posFast.T.sum()<0.32)] = posFast
 
@@ -252,6 +253,11 @@ share = round(posSlow * initialCaptial/ price, -2)
 signal = share.diff().iloc[-1]
 signal.dropna(inplace=True)
 signal = signal[signal!=0]
+
+# 计算手续费
+fee_today = (signal[signal<0] * price.iloc[-1] * fee_rate).fillna(0).abs()
+daily_pnl.loc[signal.name] = share.iloc[-2] * price.diff().iloc[-1]
+daily_pnl.iloc[-1] -= fee_today
 
 # 将交易信号文件写入扫单文件csv
 def generate_csv_file(扫单软件='cats'):
