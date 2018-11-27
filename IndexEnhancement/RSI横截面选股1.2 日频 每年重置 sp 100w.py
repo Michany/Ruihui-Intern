@@ -222,7 +222,7 @@ for i in range(batchNo):
         symbol += pool[i*10+j] + ','
     symbol = symbol[:-1] # 去掉最后的逗号
     print("Fetching Data for", symbol)
-    rawdata = w.wsi(symbol, "close", "%s 14:00:00" % TODAY, "%s 14:01:00" % TODAY, "")
+    rawdata = w.wsi(symbol, "close", "%s 14:54:00" % TODAY, "%s 14:55:00" % TODAY, "")
     rawdata = pd.DataFrame({rawdata.Data[0][0]:rawdata.Data[2]},index=rawdata.Data[1])
     # rawdata 样例：
     #            2018-11-23 14:54:00
@@ -299,3 +299,4 @@ today_share_record = [share.iloc[-1].name] # 日期时间
 today_share_record += list(share.iloc[-1].values) # 持仓数
 tracing_sheet.append(list(today_share_record))
 tracing_file.save("模拟盘PnL跟踪 - 100w.xlsx")
+print(daily_pnl.T.sum().iloc[-1])

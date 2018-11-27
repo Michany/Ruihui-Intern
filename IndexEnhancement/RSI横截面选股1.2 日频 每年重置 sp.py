@@ -222,7 +222,7 @@ for i in range(batchNo):
         symbol += pool[i*10+j] + ','
     symbol = symbol[:-1] # 去掉最后的逗号
     print("Fetching Data for", symbol)
-    rawdata = w.wsi(symbol, "close", "%s 14:55:00" % TODAY, "%s 14:56:00" % TODAY, "")
+    rawdata = w.wsi(symbol, "close", "%s 14:54:00" % TODAY, "%s 14:55:00" % TODAY, "")
     rawdata = pd.DataFrame({rawdata.Data[0][0]:rawdata.Data[2]},index=rawdata.Data[1])
     # rawdata 样例：
     #            2018-11-23 14:54:00
@@ -233,13 +233,14 @@ for i in range(batchNo):
     # 000069.SZ                 6.11
     batch_data = pd.concat([batch_data, rawdata.T], axis=1)
 data_today = pd.concat([data_today, batch_data], axis=1)
-data_close = data_today[data_today.index.minute==55]
+data_close = data_today#[data_today.index.minute==55]
 data_close = data_close.astype(float)
 # 将新老数据拼接起来
 price = pd.concat([price, data_close], sort=False)
 priceFill = price.fillna(method='ffill')
 print("New Data Loaded!", TODAY)
 
+#%%
 # 计算新仓位
 posSlow = 仓位计算和优化(40)
 posFast = 仓位计算和优化(10, fast=True)
@@ -299,3 +300,4 @@ today_share_record = [share.iloc[-1].name] # 日期时间
 today_share_record += list(share.iloc[-1].values) # 持仓数
 tracing_sheet.append(list(today_share_record))
 tracing_file.save("模拟盘PnL跟踪.xlsx")
+print(daily_pnl.T.sum().iloc[-1])
