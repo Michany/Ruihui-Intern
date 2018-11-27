@@ -16,7 +16,7 @@ TODAY = datetime.date.today().strftime('%Y-%m-%d')
 #dataset_train = pd.read_csv('NSE-TATAGLOBAL.csv')
 #training_set = dataset_train.iloc[:, 1:2].values
 hs300 = get_index_day('000300.SH', '2007-02-01', TODAY, '1D')
-training_set, testing_set = train_test_split(hs300, test_size=0.1， shuffle=False)
+training_set, testing_set = train_test_split(hs300, test_size=0.1, shuffle=False)
 
 # 处理数据
 training_set = training_set.sclose.values
