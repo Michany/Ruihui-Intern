@@ -72,11 +72,13 @@ def collect_data():
     SELECT
         a.S_INFO_WINDCODE as code,
         a.TRADE_DT as date,
-        a.S_VAL_PB_NEW as PB
+        a.S_VAL_PB_NEW as PB,
+        a.S_DQ_MV as MV
     FROM
         ASHAREEODDERIVATIVEINDICATOR AS a 
     WHERE
         TRADE_DT > '20090101' 
+        AND S_INFO_WINDCODE IN (SELECT S_INFO_WINDCODE FROM ASHAREEODDERIVATIVEINDICATOR WHERE S_DQ_MV>1000000)
         AND ( TRADE_DT LIKE '____0331' OR TRADE_DT LIKE '____0630' OR TRADE_DT LIKE '____0930' OR TRADE_DT LIKE '____1231' ) 
     ORDER BY
         a.S_INFO_WINDCODE, a.TRADE_DT
@@ -84,7 +86,8 @@ def collect_data():
     pb = pd.read_sql(SQL,conn)
     pb['date'] = pb['date'].apply(lambda s:s[:4]+'-'+s[4:6]+'-'+s[6:])
     pb = pb.astype({'date':'datetime64'})
-    print("P/B Data OK")
+    mv = pb.pivot_table(values='MV', columns='code', index='date')
+    print("P/B, Market Value Data OK")
 
     t = pd.concat([data.set_index(['code','REPORT_PERIOD']),pb.set_index(['code','date'])], axis=1)
     t.dropna(inplace=True)
