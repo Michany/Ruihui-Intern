@@ -242,8 +242,8 @@ print("New Data Loaded!", TODAY)
 
 #%%
 # 计算新仓位
-posSlow = 仓位计算和优化(40)
-posFast = 仓位计算和优化(10, fast=True)
+posSlow, RSI_Slow = 仓位计算和优化(40)
+posFast, RSI_Fast = 仓位计算和优化(10, fast=True)
 posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
 posSlow[(posSlow.T.sum()>0.95) & (posFast.T.sum()<0.32)] = posFast
 
