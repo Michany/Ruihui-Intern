@@ -7,20 +7,30 @@ PR-ROE回归关系选股
 
 根据申万宏源研报《PE-ROE股指原理与预期差选股》编写
 
+TODO
+研报中提到对异常数据做了剔除，我已经写好u+-3*σ的剔除函数，但不知道是在一个时间横截面上剔除，还是在一个个股的横截面上剔除？
+
+在行业分类上，研报中采用了申万二级，我这边采用了我所能找到的一级分类。
+
+股票池需要进一步细分为中盘，大盘，小盘，但是细分标准需要统一。
+
 updated on 2018/11/27
 """
 
-import time
 import datetime
-import pandas as pd
-import numpy as np
+import time
+from data_reader import get_index_day, get_muti_close_day
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sn
-import pymssql
-import talib
 import sklearn as skl
+import talib
 from sklearn.linear_model import LinearRegression
-from data_reader import get_muti_close_day, get_index_day
+
+import pymssql
+
 
 # %% 选股
 def collect_data():
@@ -195,9 +205,3 @@ def 图像绘制():
     plt.grid(axis='both')
     plt.show()
 图像绘制()
-
-
-
-
-
-
