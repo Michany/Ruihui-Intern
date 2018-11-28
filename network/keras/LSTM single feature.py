@@ -63,7 +63,7 @@ inputs = dataset_total[len(dataset_total) - len(testing_set) - 60:].values
 inputs = inputs.reshape(-1,1)
 inputs = sc.transform(inputs)
 X_test = []
-for i in range(step, len(testing_set)):
+for i in range(step, len(testing_set)+60):
    X_test.append(inputs[i-60:i, 0])
 X_test = np.array(X_test)
 X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
@@ -71,6 +71,7 @@ predicted_stock_price = regressor.predict(X_test)
 predicted_stock_price = sc.inverse_transform(predicted_stock_price)
 
 #%% 画图
+plt.figure(figsize=(12,8))
 plt.plot(real_stock_price, color = 'black', label = 'Stock Price')
 plt.plot(predicted_stock_price, color = 'green', label = 'Predicted Stock Price')
 plt.title('Stock Price Prediction')
