@@ -139,10 +139,23 @@ print("\n行业内优选已完成，选股总用时 %5.3f 秒" % tpy)
 #%% 获取价格数据
 price = get_muti_close_day(selection.columns, '2009-03-31', '2018-11-30', freq = 'M', adjust=-1) # 回测时还是使用前复权价格
 priceFill = price.fillna(method='ffill') 
+price_change = priceFill.diff()
+hs300 = get_index_day('000300.SH','2009-4-30','2018-11-30','M').sclose
 #%% 回测
-# share记录了实时的仓位信息
-# 交易时间为交易日的收盘前
 CAPITAL = 1E6
+pos = (mv.T/mv.T.sum()).T
+
+pos = pos.reindex(price.index, method='ffill')
+daily_pnl = pos * priceFill.pct_change()
+NAV = (daily_pnl.T.sum()+1).cumprod()
+
+plt.figure(figsize=(8,6))
+NAV.plot(label='Selection')
+(hs300.pct_change()+1).cumprod().plot(label='HS300')
+(NAV/(hs300.pct_change()+1).cumprod()).plot(label='Excess Return')
+plt.legend(fontsize=14)
+
+#%%
 share = pos[pos>0]
 share = share.reindex(price.index)
 share.fillna(method='ffill',inplace=True)
