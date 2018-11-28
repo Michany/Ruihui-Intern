@@ -24,7 +24,7 @@ from data_reader import get_muti_close_day, get_index_day
 
 # %% 选股
 def collect_data():
-    global data, industry, pb, t
+    global data, industry, pb, mv, t
 
     conn=pymssql.connect(server='192.168.0.28',port=1433,user='sa',password='abc123',database='WIND') 
     SQL='''
@@ -60,21 +60,24 @@ def collect_data():
     # 提取PB财务数据
     SQL= '''
     SELECT
-        a.S_INFO_WINDCODE as code,
-        a.TRADE_DT as date,
-        a.S_VAL_PB_NEW as PB
+            a.S_INFO_WINDCODE as code,
+            a.TRADE_DT as date,
+            a.S_VAL_PB_NEW as PB,
+            a.S_DQ_MV as MV
     FROM
-        ASHAREEODDERIVATIVEINDICATOR AS a 
+            ASHAREEODDERIVATIVEINDICATOR AS a 
     WHERE
-        TRADE_DT > '20090101' 
-        AND ( TRADE_DT LIKE '____0331' OR TRADE_DT LIKE '____0630' OR TRADE_DT LIKE '____0930' OR TRADE_DT LIKE '____1231' ) 
+            TRADE_DT > '20090101' 
+            AND S_INFO_WINDCODE IN (SELECT S_INFO_WINDCODE FROM ASHAREEODDERIVATIVEINDICATOR WHERE S_DQ_MV>1000000)
+            AND ( TRADE_DT LIKE '____0331' OR TRADE_DT LIKE '____0630' OR TRADE_DT LIKE '____0930' OR TRADE_DT LIKE '____1231' ) 
     ORDER BY
-        a.S_INFO_WINDCODE, a.TRADE_DT
+            a.S_INFO_WINDCODE, a.TRADE_DT
     '''
     pb = pd.read_sql(SQL,conn)
     pb['date'] = pb['date'].apply(lambda s:s[:4]+'-'+s[4:6]+'-'+s[6:])
     pb = pb.astype({'date':'datetime64'})
-    print("P/B Data OK")
+    mv = pb.pivot_table(values='MV', columns='code', index='date')
+    print("P/B, Market Value Data OK")
 
     t = pd.concat([data.set_index(['code','REPORT_PERIOD']),pb.set_index(['code','date'])], axis=1)
     t.dropna(inplace=True)
@@ -129,14 +132,25 @@ print("\n行业内优选已完成，选股总用时 %5.3f 秒" % tpy)
 #%% 获取价格数据
 price = get_muti_close_day(selection.columns, '2009-03-31', '2018-11-30', freq = 'M', adjust=-1) # 回测时还是使用前复权价格
 priceFill = price.fillna(method='ffill') 
+price_change = priceFill.diff()
+
 #%% 回测
-# share记录了实时的仓位信息
-# 交易时间为交易日的收盘前
 CAPITAL = 1E6
+pos = (mv.T/mv.T.sum()).T
+pos = pos.reindex(price.index, method='ffill')
+daily_pnl = pos * priceFill.pct_change()
+NAV = (daily_pnl.T.sum()+1).cumprod()
+#%%
+plt.figure(figsize=(8,6))
+NAV.plot(label='Selection')
+(hs300.pct_change()+1).cumprod().plot(label='HS300')
+(NAV/(hs300.pct_change()+1).cumprod()).plot(label='Excess Return')
+plt.legend(fontsize=14)
+
+#%%
 share = pos[pos>0]
 share = share.reindex(price.index)
 share.fillna(method='ffill',inplace=True)
-price_change = priceFill.diff()
 
 # 近似 & 按月复利 & 按年重置
 daily_pnl=pd.DataFrame()
