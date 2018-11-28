@@ -15,26 +15,35 @@ import datetime
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import talib
-from data_reader import get_muti_close_day, get_index_day, get_hk_index_day
 import pymssql
+import talib
+import sklearn as skl
+from sklearn.linear_model import LinearRegression
+from data_reader import get_muti_close_day, get_index_day
 
 # %% 选股
 def choosing(self):
     conn=pymssql.connect(server='192.168.0.28',port=1433,user='sa',password='abc123',database='WIND') 
     SQL='''
-    SELECT b.code, a.S_FA_ROE_TTM, a.s_fa_totalequity_mrq, a.ANN_DT, a.REPORT_PERIOD
-    FROM AShareTTMHis as a, HS300COMPWEIGHT as b
-    where b.[Date] BETWEEN '2018-07-01' and '2018-07-03' and a.S_INFO_WINDCODE = b.code 
-    ORDER BY b.code, a.REPORT_PERIOD'''#, a.s_fa_totalequity_mrq    and a.REPORT_PERIOD LIKE '____1231'
+    SELECT
+    	a.S_INFO_WINDCODE as code,
+    	a.S_FA_ROE as ROE,
+    	a.ANN_DT,
+    	a.REPORT_PERIOD 
+    FROM
+    	AShareFinancialIndicator AS a 
+    WHERE
+    	a.REPORT_PERIOD > '20090101' 
+    ORDER BY
+    	a.S_INFO_WINDCODE,a.REPORT_PERIOD'''#, a.s_fa_totalequity_mrq    and a.REPORT_PERIOD LIKE '____1231'
     data = pd.read_sql(SQL,conn)
-    data.dropna(subset=['S_FA_ROE_TTM'], inplace=True)
-    data.drop_duplicates(subset=['code','REPORT_PERIOD'],inplace=True)
-    # data.dropna(subset=['ANN_DT'], inplace=True)
-    data.REPORT_PERIOD = data.REPORT_PERIOD.apply(lambda s:s[:4]+'-'+s[4:6]+'-'+s[6:])
-    data = data.astype({'REPORT_PERIOD':'datetime64'})
-    data['ANN_DT'] = data['REPORT_PERIOD'].apply(lambda x:x+pd.Timedelta(80,'d') if x.is_year_end else x+pd.Timedelta(20,'d'))
 
+    data.dropna(subset=['ROE'], inplace=True)
+    data.drop_duplicates(subset=['code','REPORT_PERIOD'],inplace=True)
+    data['REPORT_PERIOD'] = data['REPORT_PERIOD'].apply(lambda s:s[:4]+'-'+s[4:6]+'-'+s[6:])
+    data = data.astype({'REPORT_PERIOD':'datetime64'})
+    # 每次获取到财务报表的时间不一，季报的时间统一为报告有效期后的20天，年报的时间统一为报告有效期后的80天
+    data['ANN_DT'] = data['REPORT_PERIOD'].apply(lambda x:x+pd.Timedelta(80,'d') if x.is_year_end else x+pd.Timedelta(20,'d'))
     # data.set_index('ANN_DT',inplace=True)
     
     industry=pd.read_sql('SELECT * FROM AShareIndustriesName',conn)
@@ -42,9 +51,51 @@ def choosing(self):
     print("Data OK\n正在选股...")
 
     t0=time.time()
+
     # industry.drop(columns=[''])
-    roe=data.merge(industry, on='code')
-    roe.set_index('ANN_DT',inplace=True)
+    data=data.merge(industry, on='code')
+    data.set_index('ANN_DT',inplace=True)
+
+    # 提取PB财务数据
+    SQL= '''
+    SELECT
+        a.S_INFO_WINDCODE as code,
+        a.TRADE_DT as date,
+        a.S_VAL_PB_NEW as PB
+    FROM
+        ASHAREEODDERIVATIVEINDICATOR AS a 
+    WHERE
+        TRADE_DT > '20090101' 
+        AND ( TRADE_DT LIKE '____0331' OR TRADE_DT LIKE '____0630' OR TRADE_DT LIKE '____0930' OR TRADE_DT LIKE '____1231' ) 
+    ORDER BY
+        a.S_INFO_WINDCODE, a.TRADE_DT
+    '''
+    pb = pd.read_sql(SQL,conn)
+    pb['date'] = pb['date'].apply(lambda s:s[:4]+'-'+s[4:6]+'-'+s[6:])
+    pb = pb.astype({'date':'datetime64'})
+    # price = pd.read_hdf(r"C:\Users\meiconte\Documents\RH\IndexEnhancement\PriceData_1101.h5", 'df')
+    # price = price.reindex(pd.date_range('2008-1-2','2018-11-1'), method='ffill')
+    # for i in data.index:
+    #     data.loc[i, 'price']= price.loc[data['ANN_DT'][i],data['code'][i]]
+    # data['PB']=data['price']/data['S_FA_BPS']
+
+    t = pd.concat([data.set_index(['code','REPORT_PERIOD']),pb.set_index(['code','date'])], axis=1)
+    t.dropna(thresh=5, inplace=True)
+    t=pd.concat([t,t.index.to_frame()],axis=1)
+    t.rename(columns={0:'code', 1:'date'}, inplace=True)
+    t['lnPB'] = t.PB.apply(np.log)
+
+    # 分组 回归
+    reg = LinearRegression()
+    for index, sector_data in t.groupby(['date','c_name']):
+        reg.fit(sector_data['lnPB'].values.reshape(-1, 1),sector_data['ROE'].values.reshape(-1, 1))
+        reg.coef_
+        sn.lmplot('lnPB','ROE',sector_data)
+        plt.show()
+        if input()!='':break
+
+
+
     # TODO ROE>15,ROE稳定,市值排名前50%或者大于10亿
     g = roe.groupby('code')
     roe_strong=pd.DataFrame()
