@@ -42,7 +42,7 @@ def collect_data():
     data = pd.read_sql(SQL,conn)
 
     data.dropna(subset=['ROE'], inplace=True)
-    data.drop_duplicates(subset=['code','REPORT_PERIOD'],inplace=True)
+
     data['REPORT_PERIOD'] = data['REPORT_PERIOD'].apply(lambda s:s[:4]+'-'+s[4:6]+'-'+s[6:])
     data = data.astype({'REPORT_PERIOD':'datetime64'})
     # 每次获取到财务报表的时间不一，季报的时间统一为报告有效期后的20天，年报的时间统一为报告有效期后的80天
@@ -51,14 +51,12 @@ def collect_data():
 
     industry=pd.read_sql('SELECT * FROM AShareIndustriesName',conn)
 
-    print("Data OK\n正在选股...")
+    print("Data OK")
 
-    t0=time.time()
-
-    # industry.drop(columns=[''])
     data=data.merge(industry, on='code')
     data.set_index('ANN_DT',inplace=True)
-
+    data = data.drop_duplicates(subset=['code','REPORT_PERIOD'])
+    
     # 提取PB财务数据
     SQL= '''
     SELECT
@@ -76,11 +74,7 @@ def collect_data():
     pb = pd.read_sql(SQL,conn)
     pb['date'] = pb['date'].apply(lambda s:s[:4]+'-'+s[4:6]+'-'+s[6:])
     pb = pb.astype({'date':'datetime64'})
-    # price = pd.read_hdf(r"C:\Users\meiconte\Documents\RH\IndexEnhancement\PriceData_1101.h5", 'df')
-    # price = price.reindex(pd.date_range('2008-1-2','2018-11-1'), method='ffill')
-    # for i in data.index:
-    #     data.loc[i, 'price']= price.loc[data['ANN_DT'][i],data['code'][i]]
-    # data['PB']=data['price']/data['S_FA_BPS']
+    print("P/B Data OK")
 
     t = pd.concat([data.set_index(['code','REPORT_PERIOD']),pb.set_index(['code','date'])], axis=1)
     t.dropna(inplace=True)
@@ -94,16 +88,22 @@ def kill_outliers(data, columns):
     
     sigma = data[columns].std()
     mu = data[columns].mean()
-    data = data[(data[columns]<mu+3*sigma) & (data[columns]>mu+3*sigma)]
+    data = data[(data[columns]<mu+3*sigma) & (data[columns]>mu-3*sigma)]
 
     return data
+
+#t = kill_outliers(t, ['ROE','lnPB'])
+
 def group_regression():
     tgroup = t.groupby(['date','c_name'])
     reg = LinearRegression()
     record = pd.DataFrame()
     for index, sector_data in tgroup:
-        print("\r正在计算 {} {}".format(*index),end='')
+        print("\r正在回归 {} {}".format(*index),end='')
+
+        kill_outliers(sector_data, ['ROE','lnPB'])
         reg.fit(sector_data['lnPB'].values.reshape(-1, 1), sector_data['ROE'].values.reshape(-1, 1))
+
         ROE预期差 = sector_data['ROE']-sector_data['lnPB'].apply(reg.predict)
         ROE预期差 = ROE预期差.apply(lambda x:x[0][0]) # 原本x是[[0.002]]的array，现在转化为float
         ROE预期差.name = 'ROE预期差'
@@ -111,65 +111,93 @@ def group_regression():
         # sn.lmplot('lnPB','ROE',sector_data)
         # plt.show()
         # if input()!='':break
-    
+    return record
 
+t0 = time.time()
+ROE_diff = group_regression()
+ROE_diff['index']=ROE_diff.index
+ROE_diff['code'] = ROE_diff['index'].apply(lambda x:x[0])
+ROE_diff['date'] = ROE_diff['index'].apply(lambda x:x[1])
+ROE_diff = ROE_diff.drop(columns=['index'])
+selection = ROE_diff.pivot_table(values=0,index='date',columns='code')
 
+# pos = pos[pos>0]
 
-# TODO ROE>15,ROE稳定,市值排名前50%或者大于10亿
-for firm in g: #利用rolling的方法加快速度，设定window=1000，min_periods=0保证达到累计平均的效果
-    print("正在计算 {}".format(firm[0]),end='\r')
-    firm[1].sort_index(inplace=True)
-    #print(firm[1])
-    #break
-    temp_rolling = firm[1].S_FA_ROE_TTM.rolling(1000,min_periods=0)
-    temp=temp_rolling.mean()
-    temp.name = firm[0]
-    roe_mean=pd.concat([roe_mean,pd.DataFrame(temp)],sort=False,axis=1)
-    temp=temp_rolling.std()<7
-    temp.name = firm[0]
-    roe_stable=pd.concat([roe_stable,pd.DataFrame(temp)],sort=False,axis=1)
-
-roe_strong = roe_mean>20
-choice = roe_strong * roe_stable
-choice.sort_index(inplace=True)
-choice = choice[self.START_DATE:self.END_DATE] #时间截断
-choice.fillna(method='ffill',inplace=True) # 用最新的roe数据，直至新的roe数据出现，所以用ffill
-roe_mean=roe_mean.sort_index().fillna(method='ffill')
-
-行业对照表 = roe.drop_duplicates(subset=['code','c_name'])
-行业对照表=行业对照表.drop(columns=['S_FA_ROE_TTM','name']).set_index('code')
-self.行业对照表=行业对照表
-
-# 根据行业来选
-industry_choice=pd.DataFrame(index=choice.index,columns=set(行业对照表.c_name))
-industry_choice.fillna(0, inplace=True)
-
-for symbol in choice.columns:
-    sector=行业对照表.loc[symbol][1]
-    industry_choice.loc[choice[symbol][choice[symbol].isin([1])].index, sector]=\
-        industry_choice.loc[choice[symbol][choice[symbol].isin([1])].index, sector].apply(
-            lambda x:x+[symbol,] if isinstance(x,list) else [symbol,])
-# 每个行业选取最优的
-def compare_then_place(exist, day):
-    temp_max=-20
-    if exist==0:
-        return 0
-    existSymbols = exist
-    for existSymbol in existSymbols:
-        if roe_mean.loc[day,existSymbol] > temp_max:
-            temp_max = roe_mean.loc[day,existSymbol]
-            max_symbol = existSymbol
-    return max_symbol
-
-for day in industry_choice.index:
-    industry_choice.loc[day]=industry_choice.loc[day].T.apply(compare_then_place,args=(day,))
-t1 = time.time()
-tpy = t1 - t0
+tpy = time.time() - t0
 print("\n行业内优选已完成，选股总用时 %5.3f 秒" % tpy)
 
-# 所有曾经选中过的股票都要获取历史数据
-s = set()
-for sector in industry_choice.columns:
-    s=s.union(set(industry_choice[sector]))
-s.remove(0)
+#%% 获取价格数据
+price = get_muti_close_day(selection.columns, '2009-03-31', '2018-11-30', freq = 'M', adjust=-1) # 回测时还是使用前复权价格
+priceFill = price.fillna(method='ffill') 
+#%% 回测
+# share记录了实时的仓位信息
+# 交易时间为交易日的收盘前
+CAPITAL = 1E6
+share = pos[pos>0]
+share = share.reindex(price.index)
+share.fillna(method='ffill',inplace=True)
+price_change = priceFill.diff()
+
+# 近似 & 按月复利 & 按年重置
+daily_pnl=pd.DataFrame()
+share_last_month = pd.DataFrame(columns=share.columns, index=share.index[0:1])
+share_last_month.fillna(0, inplace=True)
+for year in range(2008,2019):
+    initialCaptial = CAPITAL            # 每年重置初始本金
+    for month in range(1,13):
+        this_month = str(year)+'-'+str(month)
+        
+        try:
+            temp = round(share[this_month] * initialCaptial/ price,-2)
+        except:
+            continue
+        
+        share[this_month] = temp.fillna(method='ffill')
+        share_last_day = share[this_month].shift(1)
+        share_last_day.iloc[0] = share_last_month.iloc[-1] * price_change.iloc[-1]
+        share_last_month = share[this_month]
+        # 当日收益 = 昨日share * 今日涨跌幅 ; 每月第一行缺失
+
+        daily_pnl = daily_pnl.append(price_change[this_month] * share_last_day)
+        initialCaptial += daily_pnl[this_month].T.sum().sum()
+        # print(this_month, initialCaptial)
+# 手续费，卖出时一次性收取
+fee_rate = 0.0013
+fee = (share.diff()[share<share.shift(1)] * priceFill * fee_rate).fillna(0).abs()
+daily_pnl -= fee
+# 按年清空
+cum_pnl = pd.DataFrame(daily_pnl.T.sum(),columns=['pnl'])
+cum_pnl['year']=cum_pnl.index.year
+cum_pnl = cum_pnl.groupby('year')['pnl'].cumsum()   # 累计收益（金额）
+NAV = (daily_pnl.T.sum()/CAPITAL).cumsum()+1        # 净值 按月复利 每年重置 累计值
+NAV0 = (cum_pnl / CAPITAL)+1                        # 净值 按月复利 每年重置
+#换手率
+换手率=((share * price).divide((share * price).T.sum(),axis=0).diff().abs().T.sum() / 2)
+print("每日换手率 {:.2%}".format(换手率.mean()))
+print("年化换手率 {:.2%}".format(换手率.mean()*250))
+print(换手率.resample('y').sum())
+
+def 图像绘制():
+    global hs300
+    plt.rcParams["font.sans-serif"] = ["SimHei"]
+    plt.rcParams["axes.unicode_minus"] = False
+    plt.figure(figsize=(9,6))
+    
+    NAV.plot(label='按月复利 每年重置 累计值')
+    NAV0.plot(label='按月复利 每年重置')
+    exec(underLying+' = '+underLying+".reindex(daily_pnl.index)")
+    exec(underLying+' = '+underLying+'/'+underLying+'.iloc[0]')
+    exec(underLying+".plot(label='"+underLying+"')")
+    plt.legend(fontsize=11)
+    # plt.title('RSI参数={}，日频，无手续费'.format(RSI_arg),fontsize=15)
+    plt.title('RSI参数={}，日频，手续费{:.1f}‰'.format(RSI_arg, fee_rate*1000), fontsize=15)
+    # plt.title('RSI参数={}，交易日={}，手续费{:.1f}‰'.format(RSI_arg, 交易日+1, fee_rate*1000), fontsize=15)
+    plt.grid(axis='both')
+    plt.show()
+图像绘制()
+
+
+
+
+
 
