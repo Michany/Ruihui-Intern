@@ -75,7 +75,7 @@ price, priceFill = 获取数据()
 
 #%% 
 def 仓位计算和优化(arg=30, fast = False):
-    global RSI_arg, RSI
+    global RSI_arg
 
     RSI_arg = arg
     RSI = priceFill.apply(talib.RSI, args=(RSI_arg,))
@@ -100,10 +100,10 @@ def 仓位计算和优化(arg=30, fast = False):
     pos[pos.T.sum()>1] = pos[pos.T.sum()>1].divide(pos.T.sum()[pos.T.sum()>1],axis=0)
     pos.fillna(0, inplace = True)
 
-    return pos
+    return pos, RSI
 posOriginal = 仓位计算和优化(40)
-posSlow = 仓位计算和优化(40)
-posFast = 仓位计算和优化(10, fast=True)
+posSlow, RSI_Slow = 仓位计算和优化(40)
+posFast, RSI_Fast = 仓位计算和优化(10, fast=True)
 posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
 posSlow[(posSlow.T.sum()>0.99) & (posFast.T.sum()<0.32)] = posFast
 
@@ -243,7 +243,7 @@ print("New Data Loaded!", TODAY)
 #%%
 # 计算新仓位
 posSlow, RSI_Slow = 仓位计算和优化(40)
-posFast, RSI_Fast = 仓位计算和优化(10, fast=True)
+posFast, RSI_Fast  = 仓位计算和优化(10, fast=True)
 posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
 posSlow[(posSlow.T.sum()>0.95) & (posFast.T.sum()<0.32)] = posFast
 
