@@ -64,7 +64,7 @@ del data
 
 # 
 def 获取数据():
-    START_DATE = '2008-02-01'
+    START_DATE = '2007-02-01'
     END_DATE = TODAY
     print('正在获取数据...自 {} 至 {}'.format(START_DATE, END_DATE))
     price = get_muti_close_day(pool, START_DATE, END_DATE, HK=(underLying=='hsi'))
