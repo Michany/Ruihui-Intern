@@ -98,14 +98,21 @@ collect_data()
 
 #%% 分组 回归
 def kill_outliers(data, columns):
-    
-    sigma = data[columns].std()
-    mu = data[columns].mean()
-    data = data[(data[columns]<mu+3*sigma) & (data[columns]>mu-3*sigma)]
+    '''
+    去除 3 sigma 极端值
+    但是有一个问题是，还不能做到同时去除，只能一个个变量一次次去除，这样会导致去除的偏多。
+    '''
+    sigma = dict()
+    mu = dict()
+    for col in columns:
+        sigma[col] = data[col].std()
+        mu[col] = data[col].mean()
+    for col in columns:
+       data = data[(data[col]<mu[col]+3*sigma[col]) & (data[col]>mu[col]-3*sigma[col])]
 
     return data
 
-#t = kill_outliers(t, ['ROE','lnPB'])
+t = kill_outliers(t, ['ROE','lnPB'])
 
 def group_regression():
     tgroup = t.groupby(['date','c_name'])
@@ -121,9 +128,9 @@ def group_regression():
         ROE预期差 = ROE预期差.apply(lambda x:x[0][0]) # 原本x是[[0.002]]的array，现在转化为float
         ROE预期差.name = 'ROE预期差'
         record = pd.concat([record,ROE预期差],axis=0)
-        # sn.lmplot('lnPB','ROE',sector_data)
-        # plt.show()
-        # if input()!='':break
+#        sn.lmplot('lnPB','ROE',sector_data)
+#        plt.show()
+#        if input()!='':break
     return record
 
 t0 = time.time()

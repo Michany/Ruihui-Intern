@@ -107,12 +107,11 @@ for year in range(2008,2019):
     initialCaptial = CAPITAL
     for month in range(1,13):
         this_month = str(year)+'-'+str(month)
-        
+        print('\r' + this_month, end='')
         try:
             temp = round(share[this_month] * initialCaptial/ price,-2)
         except:
             continue
-        
         share[this_month] = temp.fillna(method='ffill')
         share_last_day = share[this_month].shift(1)
         share_last_day.iloc[0] = share_last_month.iloc[-1] * price_change.iloc[-1]
@@ -121,7 +120,8 @@ for year in range(2008,2019):
 
         daily_pnl = daily_pnl.append(price_change[this_month] * share_last_day)
         initialCaptial += daily_pnl[this_month].T.sum().sum()
-#        print(this_month, initialCaptial)
+
+print("回测完毕")
 # 手续费，卖出时一次性收取
 fee_rate = 0.00
 fee = (share.diff()[share<share.shift(1)] * priceFill * fee_rate).fillna(0).abs()
