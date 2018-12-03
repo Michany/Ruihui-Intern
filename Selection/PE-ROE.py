@@ -8,13 +8,14 @@ PR-ROE回归关系选股
 根据申万宏源研报《PE-ROE股指原理与预期差选股》编写
 
 TODO
-研报中提到对异常数据做了剔除，我已经写好u+-3*σ的剔除函数，但不知道是在一个时间横截面上剔除，还是在一个个股的横截面上剔除？
+u+-3*σ的剔除函数，不知道是在一个时间横截面上剔除，还是在一个个股的横截面上剔除？
 
-在行业分类上，研报中采用了申万二级，我这边采用了我所能找到的一级分类。
+在行业分类上，研报中采用了申万二级，我这边采用了我所能找到的Sina一级分类。
 
 股票池需要进一步细分为中盘，大盘，小盘，但是细分标准需要统一。
 
-updated on 2018/11/27
+市值
+updated on 2018/12/3
 """
 
 import datetime
@@ -102,13 +103,14 @@ def kill_outliers(data, columns):
     去除 3 sigma 极端值
     但是有一个问题是，还不能做到同时去除，只能一个个变量一次次去除，这样会导致去除的偏多。
     '''
+    ranging = 2
     sigma = dict()
     mu = dict()
     for col in columns:
         sigma[col] = data[col].std()
         mu[col] = data[col].mean()
     for col in columns:
-       data = data[(data[col]<mu[col]+3*sigma[col]) & (data[col]>mu[col]-3*sigma[col])]
+       data = data[(data[col]<mu[col]+ranging*sigma[col]) & (data[col]>mu[col]-ranging*sigma[col])]
 
     return data
 
@@ -150,10 +152,10 @@ print("\n行业内优选已完成，选股总用时 %5.3f 秒" % tpy)
 price = get_muti_close_day(selection.columns, '2009-03-31', '2018-11-30', freq = 'M', adjust=-1) # 回测时还是使用前复权价格
 priceFill = price.fillna(method='ffill') 
 price_change = priceFill.diff()
-hs300 = get_index_day('000300.SH','2009-4-30','2018-11-30','M').sclose
+hs300 = get_index_day('000001.SH','2009-4-30','2018-11-30','M').sclose
 #%% 回测
 CAPITAL = 1E6
-pos = (mv.T/mv.T.sum()).T
+pos = (mv.T/mv.T.sum()).T #按照市值加权作为仓位
 
 pos = pos.reindex(price.index, method='ffill')
 daily_pnl = pos * priceFill.pct_change()
@@ -161,55 +163,11 @@ NAV = (daily_pnl.T.sum()+1).cumprod()
 
 plt.figure(figsize=(8,6))
 NAV.plot(label='Selection')
-(hs300.pct_change()+1).cumprod().plot(label='HS300')
-(NAV/(hs300.pct_change()+1).cumprod()).plot(label='Excess Return')
+(hs300.pct_change()+1).cumprod().plot(label='000001.SH')
+(NAV/(hs300.pct_change()+1).cumprod()).plot(label='Exess Return')
 plt.legend(fontsize=14)
 
 #%%
-share = pos[pos>0]
-share = share.reindex(price.index)
-share.fillna(method='ffill',inplace=True)
-price_change = priceFill.diff()
-
-# 近似 & 按月复利 & 按年重置
-daily_pnl=pd.DataFrame()
-share_last_month = pd.DataFrame(columns=share.columns, index=share.index[0:1])
-share_last_month.fillna(0, inplace=True)
-for year in range(2008,2019):
-    initialCaptial = CAPITAL            # 每年重置初始本金
-    for month in range(1,13):
-        this_month = str(year)+'-'+str(month)
-        
-        try:
-            temp = round(share[this_month] * initialCaptial/ price,-2)
-        except:
-            continue
-        
-        share[this_month] = temp.fillna(method='ffill')
-        share_last_day = share[this_month].shift(1)
-        share_last_day.iloc[0] = share_last_month.iloc[-1] * price_change.iloc[-1]
-        share_last_month = share[this_month]
-        # 当日收益 = 昨日share * 今日涨跌幅 ; 每月第一行缺失
-
-        daily_pnl = daily_pnl.append(price_change[this_month] * share_last_day)
-        initialCaptial += daily_pnl[this_month].T.sum().sum()
-        # print(this_month, initialCaptial)
-# 手续费，卖出时一次性收取
-fee_rate = 0.0013
-fee = (share.diff()[share<share.shift(1)] * priceFill * fee_rate).fillna(0).abs()
-daily_pnl -= fee
-# 按年清空
-cum_pnl = pd.DataFrame(daily_pnl.T.sum(),columns=['pnl'])
-cum_pnl['year']=cum_pnl.index.year
-cum_pnl = cum_pnl.groupby('year')['pnl'].cumsum()   # 累计收益（金额）
-NAV = (daily_pnl.T.sum()/CAPITAL).cumsum()+1        # 净值 按月复利 每年重置 累计值
-NAV0 = (cum_pnl / CAPITAL)+1                        # 净值 按月复利 每年重置
-#换手率
-换手率=((share * price).divide((share * price).T.sum(),axis=0).diff().abs().T.sum() / 2)
-print("每日换手率 {:.2%}".format(换手率.mean()))
-print("年化换手率 {:.2%}".format(换手率.mean()*250))
-print(换手率.resample('y').sum())
-
 def 图像绘制():
     global hs300
     plt.rcParams["font.sans-serif"] = ["SimHei"]
@@ -217,10 +175,7 @@ def 图像绘制():
     plt.figure(figsize=(9,6))
     
     NAV.plot(label='按月复利 每年重置 累计值')
-    NAV0.plot(label='按月复利 每年重置')
-    exec(underLying+' = '+underLying+".reindex(daily_pnl.index)")
-    exec(underLying+' = '+underLying+'/'+underLying+'.iloc[0]')
-    exec(underLying+".plot(label='"+underLying+"')")
+
     plt.legend(fontsize=11)
     # plt.title('RSI参数={}，日频，无手续费'.format(RSI_arg),fontsize=15)
     plt.title('RSI参数={}，日频，手续费{:.1f}‰'.format(RSI_arg, fee_rate*1000), fontsize=15)
