@@ -166,6 +166,7 @@ pos = (pos.T/(pos.T.sum())).T# 将仓位调整至100%
 # 计算当日盈亏百分比
 daily_pnl = pos * priceFill.pct_change()
 NAV = (daily_pnl.T.sum()+1).cumprod() #计算净值
+NAV0 = 1+(daily_pnl.T.sum()).cumsum() #计算净值
 #画图
 plt.figure(figsize=(8,6))
 NAV.plot(label='Selection')
@@ -173,19 +174,17 @@ NAV.plot(label='Selection')
 (NAV/(hs300.pct_change()+1).cumprod()).plot(label='Exess Return')
 plt.legend(fontsize=14)
 
-#%%
-def 图像绘制():
-    global hs300
-    plt.rcParams["font.sans-serif"] = ["SimHei"]
-    plt.rcParams["axes.unicode_minus"] = False
-    plt.figure(figsize=(9,6))
-    
-    NAV.plot(label='按月复利 每年重置 累计值')
 
-    plt.legend(fontsize=11)
-    # plt.title('RSI参数={}，日频，无手续费'.format(RSI_arg),fontsize=15)
-    plt.title('RSI参数={}，日频，手续费{:.1f}‰'.format(RSI_arg, fee_rate*1000), fontsize=15)
-    # plt.title('RSI参数={}，交易日={}，手续费{:.1f}‰'.format(RSI_arg, 交易日+1, fee_rate*1000), fontsize=15)
-    plt.grid(axis='both')
+#%%
+def check(y):#看一下具体每一年的表现
+    year = str(y)
+    
+#    (NAV[year]/NAV[year].iloc[0]).plot()
+#    (hs300[year]/hs300[year].iloc[0]).plot(c='black')
+    print(y, (NAV[year]/NAV[year].iloc[0]).iloc[-1]-(hs300[year]/hs300[year].iloc[0]).iloc[-1])
     plt.show()
-图像绘制()
+for i in range(2009,2019):
+    check(i)
+temp = (daily_pnl.T.sum()-hs300.pct_change()).fillna(0)
+plt.hist(temp)
+
