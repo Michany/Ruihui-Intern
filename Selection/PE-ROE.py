@@ -14,7 +14,7 @@ u+-3*σ的剔除函数，不知道是在一个时间横截面上剔除，还是�
 
 股票池需要进一步细分为中盘，大盘，小盘，但是细分标准需要统一。
 
-市值
+市值>100亿元，在2015年以前
 updated on 2018/12/3
 """
 
@@ -79,7 +79,7 @@ def collect_data():
         ASHAREEODDERIVATIVEINDICATOR AS a 
     WHERE
         TRADE_DT > '20090101' 
-        AND S_INFO_WINDCODE IN (SELECT S_INFO_WINDCODE FROM ASHAREEODDERIVATIVEINDICATOR WHERE S_DQ_MV>1000000)
+        AND S_INFO_WINDCODE IN (SELECT S_INFO_WINDCODE FROM ASHAREEODDERIVATIVEINDICATOR WHERE S_DQ_MV>1000000 and TRADE_DT < '20150101')
         AND ( TRADE_DT LIKE '____0331' OR TRADE_DT LIKE '____0630' OR TRADE_DT LIKE '____0930' OR TRADE_DT LIKE '____1231' ) 
     ORDER BY
         a.S_INFO_WINDCODE, a.TRADE_DT
@@ -116,7 +116,7 @@ def kill_outliers(data, columns):
 
 t = kill_outliers(t, ['ROE','lnPB'])
 
-def group_regression():
+def group_regression(mute = True):
     tgroup = t.groupby(['date','c_name'])
     reg = LinearRegression()
     record = pd.DataFrame()
@@ -128,11 +128,12 @@ def group_regression():
 
         ROE预期差 = sector_data['ROE']-sector_data['lnPB'].apply(reg.predict)
         ROE预期差 = ROE预期差.apply(lambda x:x[0][0]) # 原本x是[[0.002]]的array，现在转化为float
-        ROE预期差.name = 'ROE预期差'
+        ROE预期差.name = 'ROE预期差'            
         record = pd.concat([record,ROE预期差],axis=0)
-#        sn.lmplot('lnPB','ROE',sector_data)
-#        plt.show()
-#        if input()!='':break
+        if not mute:
+            sn.lmplot('lnPB','ROE',sector_data)
+            plt.show()
+            if input()!='':break
     return record
 
 t0 = time.time()
@@ -142,8 +143,7 @@ ROE_diff['code'] = ROE_diff['index'].apply(lambda x:x[0])
 ROE_diff['date'] = ROE_diff['index'].apply(lambda x:x[1])
 ROE_diff = ROE_diff.drop(columns=['index'])
 selection = ROE_diff.pivot_table(values=0,index='date',columns='code')
-
-# pos = pos[pos>0]
+selection = selection.fillna(0)
 
 tpy = time.time() - t0
 print("\n行业内优选已完成，选股总用时 %5.3f 秒" % tpy)
@@ -152,18 +152,24 @@ print("\n行业内优选已完成，选股总用时 %5.3f 秒" % tpy)
 price = get_muti_close_day(selection.columns, '2009-03-31', '2018-11-30', freq = 'M', adjust=-1) # 回测时还是使用前复权价格
 priceFill = price.fillna(method='ffill') 
 price_change = priceFill.diff()
-hs300 = get_index_day('000001.SH','2009-4-30','2018-11-30','M').sclose
+hs300 = get_index_day('000300.SH','2009-4-30','2018-11-30','M').sclose
+szzz = get_index_day('000001.SH','2009-4-30','2018-11-30','M').sclose
+zz500 = get_index_day('000905.SH','2009-4-30','2018-11-30','M').sclose
+
 #%% 回测
 CAPITAL = 1E6
 pos = (mv.T/mv.T.sum()).T #按照市值加权作为仓位
-
 pos = pos.reindex(price.index, method='ffill')
+selection = selection.reindex(price.index, method='ffill')
+pos = pos[selection>0]# 选取selection中结果大于零的
+pos = (pos.T/(pos.T.sum())).T# 将仓位调整至100%
+# 计算当日盈亏百分比
 daily_pnl = pos * priceFill.pct_change()
-NAV = (daily_pnl.T.sum()+1).cumprod()
-
+NAV = (daily_pnl.T.sum()+1).cumprod() #计算净值
+#画图
 plt.figure(figsize=(8,6))
 NAV.plot(label='Selection')
-(hs300.pct_change()+1).cumprod().plot(label='000001.SH')
+(hs300.pct_change()+1).cumprod().plot(label='000300.SH')
 (NAV/(hs300.pct_change()+1).cumprod()).plot(label='Exess Return')
 plt.legend(fontsize=14)
 
