@@ -6,16 +6,20 @@ PR-ROE回归关系选股
 ----------------
 
 根据申万宏源研报《PE-ROE股指原理与预期差选股》编写
+2018/12/5 电话咨询分析师
 
 TODO
 u+-3*σ的剔除函数，不知道是在一个时间横截面上剔除，还是在一个个股的横截面上剔除？
+A: 只是剔除了PB>30
 
 在行业分类上，研报中采用了申万二级，我这边采用了我所能找到的Sina一级分类。
-
+A: 细分以后，确实会很少，然后回归线的斜率也是负数，这种情况需要剔除
+    
 股票池需要进一步细分为中盘，大盘，小盘，但是细分标准需要统一。
+A: 细分标准是 前20%大盘股 后30%小盘股
 
 市值>100亿元，在2015年以前
-updated on 2018/12/3
+updated on 2018/12/6
 """
 
 import datetime
@@ -31,7 +35,6 @@ import talib
 from sklearn.linear_model import LinearRegression
 
 import pymssql
-
 
 # %% 选股
 def collect_data():
@@ -181,7 +184,7 @@ def check(y):#看一下具体每一年的表现
     
 #    (NAV[year]/NAV[year].iloc[0]).plot()
 #    (hs300[year]/hs300[year].iloc[0]).plot(c='black')
-    print(y, (NAV[year]/NAV[year].iloc[0]).iloc[-1]-(hs300[year]/hs300[year].iloc[0]).iloc[-1])
+    print(y, (NAV[year]/NAV[year].iloc[0]).iloc[-1]-1,(hs300[year]/hs300[year].iloc[0]).iloc[-1]-1)
     plt.show()
 for i in range(2009,2019):
     check(i)
