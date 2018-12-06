@@ -196,6 +196,8 @@ else:
 
 # 计算当日盈亏百分比
 daily_pnl = pos * priceFill.pct_change()
+
+daily_pnl = daily_pnl['2015-04-16':]
 NAV = (daily_pnl.T.sum()+1).cumprod() #计算净值
 NAV0 = 1+(daily_pnl.T.sum()).cumsum() #计算净值
 #画图
@@ -205,8 +207,8 @@ if 大盘股:
     (hs300.pct_change()+1).cumprod().plot(label='000300.SH')
     (NAV/(hs300.pct_change()+1).cumprod()).plot(label='Exess Return')
 else:
-    (zz500.pct_change()+1).cumprod().plot(label='000905.SH')
-    (NAV/(zz500.pct_change()+1).cumprod()).plot(label='Exess Return')
+    (IC.CLOSE.pct_change()+1).cumprod().plot(label='000905.SH')
+    (NAV/(IC.CLOSE.pct_change()+1).cumprod()).plot(label='Exess Return')
 plt.legend(fontsize=14)
 
 
