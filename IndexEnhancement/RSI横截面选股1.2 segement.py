@@ -187,27 +187,21 @@ def 图像绘制():
     plt.grid(axis='both')
     plt.show()
 图像绘制()
-#%% 
-def excel输出():
-    df = pd.DataFrame({'Daily_pnl':daily_pnl.T.sum(),
-                       '累计PNL':cum_pnl,
-                       '账户价值':cum_pnl+CAPITAL,
-                       'NAV':NAV0, 'NAV累计':NAV},
-                       index = daily_pnl.index)
-    df.index.name = 'date'
-    df.to_excel('RSI横截面_{}纯多头_收益率明细_{}_日.xlsx'.format(underLying, TODAY),
-                sheet_name = 'RSI={},日频'.format(RSI_arg))
+#%% See what happened
+for index in price.columns:
+    posSlow[index]['2009'].plot()
+    plt.ylim((-0.001, 0.014))
+    plt.twinx()
+    price[index]['2009'].plot(c='black')
+    plt.title(index)
+    plt.show()
     
-    df = daily_pnl.join(share, lsuffix='_pnl',rsuffix='_share')
-    df = df.join(price,rsuffix='_price')
-    df = df.join(RSI_Fast, rsuffix='_RSI_Fast')
-    df = df.join(RSI_Slow, rsuffix='_RSI_Slow')
-    df.sort_index(axis=1,inplace=True)
-    df.columns = pd.MultiIndex.from_product([daily_pnl.columns,['price','RSI_Fast','RSI_Slow','daily_pnl','share']])
-    df.to_excel('RSI横截面_{}纯多头_持仓明细_{}_日.xlsx'.format(underLying, TODAY),
-                sheet_name = 'RSI={},日频'.format(RSI_arg))
-excel输出()
-
+    daily_pnl[index]['2009'].cumsum().plot(c='gold')
+    plt.twinx()
+    price[index]['2009'].plot(c='black')
+    plt.show()
+    
+    if input()!='':break
 #%% 获取实时数据
 from WindPy import *
 w.start()
