@@ -162,7 +162,8 @@ price_change = priceFill.diff()
 hs300 = get_index_day('000300.SH','2009-4-30','2018-11-30','M').sclose
 szzz = get_index_day('000001.SH','2009-4-30','2018-11-30','M').sclose
 zz500 = get_index_day('000905.SH','2009-4-30','2018-11-30','M').sclose
-
+IC = pd.read_hdf("monthlyData-over10B.h5",'IC')
+IF = pd.read_hdf("monthlyData-over10B.h5",'IF')
 # 剔除没有价格数据的部分股票
 l=list(mv.columns)
 for i in price.columns:
@@ -200,6 +201,10 @@ daily_pnl = pos * priceFill.pct_change()
 daily_pnl = daily_pnl['2015-04-16':]
 NAV = (daily_pnl.T.sum()+1).cumprod() #计算净值
 NAV0 = 1+(daily_pnl.T.sum()).cumsum() #计算净值
+
+IC = IC.resample('M').last()
+IF = IF.resample('M').last()
+
 #画图
 plt.figure(figsize=(8,6))
 NAV.plot(label='Selection')
