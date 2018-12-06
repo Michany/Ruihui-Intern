@@ -82,7 +82,7 @@ def collect_data():
         ASHAREEODDERIVATIVEINDICATOR AS a 
     WHERE
         TRADE_DT > '20090101' 
-        AND S_INFO_WINDCODE IN (SELECT S_INFO_WINDCODE FROM ASHAREEODDERIVATIVEINDICATOR WHERE S_DQ_MV>1000000 and TRADE_DT < '20150101')
+        AND S_INFO_WINDCODE IN (SELECT S_INFO_WINDCODE FROM ASHAREEODDERIVATIVEINDICATOR WHERE S_DQ_MV>1000000)
         AND ( TRADE_DT LIKE '____0331' OR TRADE_DT LIKE '____0630' OR TRADE_DT LIKE '____0930' OR TRADE_DT LIKE '____1231' ) 
     ORDER BY
         a.S_INFO_WINDCODE, a.TRADE_DT
@@ -90,10 +90,12 @@ def collect_data():
     pb = pd.read_sql(SQL,conn)
     pb['date'] = pb['date'].apply(lambda s:s[:4]+'-'+s[4:6]+'-'+s[6:])
     pb = pb.astype({'date':'datetime64'})
+    # updated: 剔除PB>100的情况
+    pb = pb[pb.PB<100] 
     mv = pb.pivot_table(values='MV', columns='code', index='date')
     print("P/B, Market Value Data OK")
 
-    t = pd.concat([data.set_index(['code','REPORT_PERIOD']),pb.set_index(['code','date'])], axis=1)
+    t = pd.concat([pb.set_index(['code','date']), data.set_index(['code','REPORT_PERIOD'])], axis=1)
     t.dropna(inplace=True)
     t=pd.concat([t,t.index.to_frame()],axis=1)
     t.rename(columns={0:'code', 1:'date'}, inplace=True)
@@ -117,7 +119,7 @@ def kill_outliers(data, columns):
 
     return data
 
-t = kill_outliers(t, ['ROE','lnPB'])
+#t = kill_outliers(t, ['ROE','lnPB'])
 
 def group_regression(mute = True):
     tgroup = t.groupby(['date','c_name'])
@@ -126,9 +128,11 @@ def group_regression(mute = True):
     for index, sector_data in tgroup:
         print("\r正在回归 {} {}".format(*index),end='')
 
-        kill_outliers(sector_data, ['ROE','lnPB'])
+        # kill_outliers(sector_data, ['ROE','lnPB'])
         reg.fit(sector_data['lnPB'].values.reshape(-1, 1), sector_data['ROE'].values.reshape(-1, 1))
-
+        # 如果斜率小于0，则把这种情况丢弃
+        if reg.coef_ < 0:
+            continue
         ROE预期差 = sector_data['ROE']-sector_data['lnPB'].apply(reg.predict)
         ROE预期差 = ROE预期差.apply(lambda x:x[0][0]) # 原本x是[[0.002]]的array，现在转化为float
         ROE预期差.name = 'ROE预期差'            
@@ -159,6 +163,11 @@ hs300 = get_index_day('000300.SH','2009-4-30','2018-11-30','M').sclose
 szzz = get_index_day('000001.SH','2009-4-30','2018-11-30','M').sclose
 zz500 = get_index_day('000905.SH','2009-4-30','2018-11-30','M').sclose
 
+# 剔除没有价格数据的部分股票
+l=list(mv.columns)
+for i in price.columns:
+    l.remove(i)
+mv = mv.drop(columns=l)
 #%% 股票选择
 isBig = (mv.T > mv.T.quantile(0.8)).T
 isSmall = (mv.T < mv.T.quantile(0.3)).T
@@ -168,14 +177,23 @@ selection = reindex_fill_gap(selection)
 isBig = reindex_fill_gap(isBig)
 isSmall = reindex_fill_gap(isSmall)
 #%% 回测
-CAPITAL = 1E6
 pos = (mv.T/mv.T.sum()).T #按照市值加权作为仓位
 pos = pos.reindex(price.index, method='ffill')
 
 pos = pos[selection>0]# 选取selection中结果大于零的
-pos = pos[isSmall==True]# 选取大盘股
 
-pos = (pos.T/(pos.T.sum())).T# 将仓位调整至100%
+大盘股=1
+if 大盘股:
+    pos = pos[isBig==True]# 选取大盘股
+    pos = (pos.T/(pos.T.sum())).T# 将仓位调整至100%
+else:
+    pos = pos[isSmall==True]# 选取小盘股
+    pos_col = 1/((pos>0).T.sum())
+    for col in pos.columns:  # 小盘股等值加权
+        pos[col]=pos_col     # 讲等权值赋给每一行
+    pos = pos[selection>0]   # 重新剔除
+    pos = pos[isSmall==True] # 重新剔除
+
 # 计算当日盈亏百分比
 daily_pnl = pos * priceFill.pct_change()
 NAV = (daily_pnl.T.sum()+1).cumprod() #计算净值
@@ -183,7 +201,7 @@ NAV0 = 1+(daily_pnl.T.sum()).cumsum() #计算净值
 #画图
 plt.figure(figsize=(8,6))
 NAV.plot(label='Selection')
-(zz500.pct_change()+1).cumprod().plot(label='000300.SH')
+(zz500.pct_change()+1).cumprod().plot(label='000905.SH')
 (NAV/(zz500.pct_change()+1).cumprod()).plot(label='Exess Return')
 plt.legend(fontsize=14)
 
