@@ -159,12 +159,22 @@ hs300 = get_index_day('000300.SH','2009-4-30','2018-11-30','M').sclose
 szzz = get_index_day('000001.SH','2009-4-30','2018-11-30','M').sclose
 zz500 = get_index_day('000905.SH','2009-4-30','2018-11-30','M').sclose
 
+#%% 股票选择
+isBig = (mv.T > mv.T.quantile(0.8)).T
+isSmall = (mv.T < mv.T.quantile(0.3)).T
+def reindex_fill_gap(inputDataFrame, defaultIndex = price.index):
+    return inputDataFrame.reindex(defaultIndex, method='ffill')
+selection = reindex_fill_gap(selection)
+isBig = reindex_fill_gap(isBig)
+isSmall = reindex_fill_gap(isSmall)
 #%% 回测
 CAPITAL = 1E6
 pos = (mv.T/mv.T.sum()).T #按照市值加权作为仓位
 pos = pos.reindex(price.index, method='ffill')
-selection = selection.reindex(price.index, method='ffill')
+
 pos = pos[selection>0]# 选取selection中结果大于零的
+pos = pos[isSmall==True]# 选取大盘股
+
 pos = (pos.T/(pos.T.sum())).T# 将仓位调整至100%
 # 计算当日盈亏百分比
 daily_pnl = pos * priceFill.pct_change()
@@ -173,8 +183,8 @@ NAV0 = 1+(daily_pnl.T.sum()).cumsum() #计算净值
 #画图
 plt.figure(figsize=(8,6))
 NAV.plot(label='Selection')
-(hs300.pct_change()+1).cumprod().plot(label='000300.SH')
-(NAV/(hs300.pct_change()+1).cumprod()).plot(label='Exess Return')
+(zz500.pct_change()+1).cumprod().plot(label='000300.SH')
+(NAV/(zz500.pct_change()+1).cumprod()).plot(label='Exess Return')
 plt.legend(fontsize=14)
 
 
