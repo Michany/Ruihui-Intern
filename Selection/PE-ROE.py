@@ -182,7 +182,7 @@ pos = pos.reindex(price.index, method='ffill')
 
 pos = pos[selection>0]# 选取selection中结果大于零的
 
-大盘股=1
+大盘股=0
 if 大盘股:
     pos = pos[isBig==True]# 选取大盘股
     pos = (pos.T/(pos.T.sum())).T# 将仓位调整至100%
@@ -201,8 +201,12 @@ NAV0 = 1+(daily_pnl.T.sum()).cumsum() #计算净值
 #画图
 plt.figure(figsize=(8,6))
 NAV.plot(label='Selection')
-(zz500.pct_change()+1).cumprod().plot(label='000905.SH')
-(NAV/(zz500.pct_change()+1).cumprod()).plot(label='Exess Return')
+if 大盘股:
+    (hs300.pct_change()+1).cumprod().plot(label='000300.SH')
+    (NAV/(hs300.pct_change()+1).cumprod()).plot(label='Exess Return')
+else:
+    (zz500.pct_change()+1).cumprod().plot(label='000905.SH')
+    (NAV/(zz500.pct_change()+1).cumprod()).plot(label='Exess Return')
 plt.legend(fontsize=14)
 
 
