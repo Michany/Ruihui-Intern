@@ -224,7 +224,7 @@ def check(y):#看一下具体每一年的表现
 #    (NAV[year]/NAV[year].iloc[0]).plot()
 #    (hs300[year]/hs300[year].iloc[0]).plot(c='black')
     print(y, (NAV[year]/NAV[year].iloc[0]).iloc[-1]-1,(hs300[year]/hs300[year].iloc[0]).iloc[-1]-1)
-    plt.show()
+#    plt.show()
 for i in range(2009,2019):
     check(i)
 temp = (daily_pnl.T.sum()-hs300.pct_change()).fillna(0)
