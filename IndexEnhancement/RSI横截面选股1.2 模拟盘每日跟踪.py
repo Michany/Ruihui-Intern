@@ -2,17 +2,8 @@
 """
 @author: Michael Wang
 
-`Based on Version 1.1`
-
-- 港股
-- 市值大于100亿
-- 初始资本金 5e7
-- 每年重置资本金
-- RSI线 分为快慢
-- price 分为交易/停牌，需要区分对待；对于停牌的，需要用nan，并在计算中不予以考虑
-- 模拟盘PnL监测
-- 新数据进来以后算上手续费
-updated on 2018/11/27
+模拟盘每日跟踪程序  
+updated on 2018/12/19
 """
 import datetime
 import pandas as pd
@@ -23,6 +14,7 @@ from data_reader import get_muti_close_day, get_index_day, get_hk_index_day
 import pymssql
 # pylint: disable=E1101,E1103
 # pylint: disable=W0212,W0231,W0703,W0622
+
 CAPITAL = 1e6
 TODAY = datetime.date.today().strftime('%Y-%m-%d')
 
@@ -107,21 +99,7 @@ posFast, RSI_Fast = 仓位计算和优化(10, fast=True)
 posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
 posSlow[(posSlow.T.sum()>0.99) & (posFast.T.sum()<0.32)] = posFast
 
-def check(y):#看一下具体每一年的表现
-    year = str(y)
-    posSlow[year].T.sum().plot(c='r')
-    plt.twinx()
-    hs300[year].plot()
-    plt.show()
-    
-    posFast[year].T.sum().plot(c='r')
-    plt.twinx()
-    hs300[year].plot()
-    plt.show()
-    
-    NAV0[year].plot(c='r')
-    (hs300[year]/hs300[year].iloc[0]).plot()
-    plt.show()
+
 #%%
 # share记录了实时的仓位信息
 # 交易时间为交易日的收盘前
@@ -170,45 +148,6 @@ NAV0 = (cum_pnl / CAPITAL)+1                        # 净值 按月复利 每年
 print("每日换手率 {:.2%}".format(换手率.mean()))
 print("年化换手率 {:.2%}".format(换手率.mean()*250))
 print(换手率.resample('y').sum())
-
-def 图像绘制():
-    global hs300
-    plt.rcParams["font.sans-serif"] = ["SimHei"]
-    plt.rcParams["axes.unicode_minus"] = False
-    plt.figure(figsize=(9,6))
-    
-    NAV.plot(label='按月复利 每年重置 累计值')
-    NAV0.plot(label='按月复利 每年重置')
-    exec(underLying+' = '+underLying+".reindex(daily_pnl.index)")
-    exec(underLying+' = '+underLying+'/'+underLying+'.iloc[0]')
-    exec(underLying+".plot(label='"+underLying+"')")
-    plt.legend(fontsize=11)
-    # plt.title('RSI参数={}，日频，无手续费'.format(RSI_arg),fontsize=15)
-    plt.title('RSI参数={}，日频，手续费{:.1f}‰'.format(RSI_arg, fee_rate*1000), fontsize=15)
-    # plt.title('RSI参数={}，交易日={}，手续费{:.1f}‰'.format(RSI_arg, 交易日+1, fee_rate*1000), fontsize=15)
-    plt.grid(axis='both')
-    plt.show()
-图像绘制()
-#%% 
-def excel输出():
-    df = pd.DataFrame({'Daily_pnl':daily_pnl.T.sum(),
-                       '累计PNL':cum_pnl,
-                       '账户价值':cum_pnl+CAPITAL,
-                       'NAV':NAV0, 'NAV累计':NAV},
-                       index = daily_pnl.index)
-    df.index.name = 'date'
-    df.to_excel('RSI横截面_{}纯多头_收益率明细_{}_日.xlsx'.format(underLying, TODAY),
-                sheet_name = 'RSI={},日频'.format(RSI_arg))
-    
-    df = daily_pnl.join(share, lsuffix='_pnl',rsuffix='_share')
-    df = df.join(price,rsuffix='_price')
-    df = df.join(RSI_Fast, rsuffix='_RSI_Fast')
-    df = df.join(RSI_Slow, rsuffix='_RSI_Slow')
-    df.sort_index(axis=1,inplace=True)
-    df.columns = pd.MultiIndex.from_product([daily_pnl.columns,['price','RSI_Fast','RSI_Slow','daily_pnl','share']])
-    df.to_excel('RSI横截面_{}纯多头_持仓明细_{}_日.xlsx'.format(underLying, TODAY),
-                sheet_name = 'RSI={},日频'.format(RSI_arg))
-excel输出()
 
 #%% 获取实时数据
 from WindPy import *
@@ -301,4 +240,103 @@ today_share_record = [share.iloc[-1].name] # 日期时间
 today_share_record += list(share.iloc[-1].values) # 持仓数
 tracing_sheet.append(list(today_share_record))
 tracing_file.save("模拟盘PnL跟踪 - 100w.xlsx")
-print(daily_pnl.T.sum().iloc[-1])
+print("100W策略PnL", daily_pnl.T.sum().iloc[-1])
+
+
+
+
+# --------------------------------------
+
+#%% 5000W
+
+CAPITAL = 5e7
+
+#退回前一天价格
+price=price.iloc[:-1]
+priceFill=priceFill.iloc[:-1]
+
+# 重新跑一遍，为什么？因为之前的策略表现会影响initialCapital，从而影响买的股数
+posOriginal = 仓位计算和优化(40)
+posSlow, RSI_Slow = 仓位计算和优化(40)
+posFast, RSI_Fast = 仓位计算和优化(10, fast=True)
+posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
+posSlow[(posSlow.T.sum()>0.99) & (posFast.T.sum()<0.32)] = posFast
+
+share = posSlow
+share = share.reindex(posSlow.index)
+share.fillna(method='ffill',inplace=True)
+price_change = priceFill.diff()
+
+daily_pnl=pd.DataFrame()
+share_last_month = pd.DataFrame(columns=share.columns, index=share.index[0:1])
+share_last_month.fillna(0, inplace=True)
+for year in range(2008,2019):
+    initialCaptial = CAPITAL            # 每年重置初始本金
+    for month in range(1,13):
+        this_month = str(year)+'-'+str(month)
+        print('\r' + this_month, end='')
+        
+        try:
+            temp = round(share[this_month] * initialCaptial/ price,-2)
+        except:
+            continue
+        
+        share[this_month] = temp.fillna(method='ffill')
+        share_last_day = share[this_month].shift(1)
+        share_last_day.iloc[0] = share_last_month.iloc[-1] * price_change.iloc[-1]
+        share_last_month = share[this_month]
+        # 当日收益 = 昨日share * 今日涨跌幅 ; 每月第一行缺失
+
+        daily_pnl = daily_pnl.append(price_change[this_month] * share_last_day)
+        initialCaptial += daily_pnl[this_month].T.sum().sum()
+        # print(this_month, initialCaptial)
+print("\r回测完毕")
+fee_rate = 0.0013
+fee = (share.diff()[share<share.shift(1)] * priceFill * fee_rate).fillna(0).abs()
+daily_pnl -= fee
+cum_pnl = pd.DataFrame(daily_pnl.T.sum(),columns=['pnl'])
+cum_pnl['year']=cum_pnl.index.year
+cum_pnl = cum_pnl.groupby('year')['pnl'].cumsum()   # 累计收益（金额）
+NAV = (daily_pnl.T.sum()/CAPITAL).cumsum()+1        # 净值 按月复利 每年重置 累计值
+NAV0 = (cum_pnl / CAPITAL)+1                        # 净值 按月复利 每年重置
+换手率=((share * price).divide((share * price).T.sum(),axis=0).diff().abs().T.sum() / 2)
+
+
+图像绘制()
+
+price = pd.concat([price, data_close], sort=False)
+priceFill = price.fillna(method='ffill')
+
+posSlow, RSI_Slow = 仓位计算和优化(40)
+posFast, RSI_Fast = 仓位计算和优化(10, fast=True)
+posSlow[(posSlow.T.sum()<0.50) & (posSlow.T.sum()>0.05)] = posFast
+posSlow[(posSlow.T.sum()>0.95) & (posFast.T.sum()<0.32)] = posFast
+
+# 计算新持股数
+share = round(posSlow * initialCaptial/ price, -2)
+
+# 交易信号 
+signal = share.diff().iloc[-1]
+signal.dropna(inplace=True)
+signal = signal[signal!=0]
+
+# 计算手续费
+fee_today = (signal[signal<0] * price.iloc[-1] * fee_rate).fillna(0).abs()
+daily_pnl.loc[signal.name] = share.iloc[-2] * price.diff().iloc[-1]
+daily_pnl.iloc[-1] -= fee_today
+
+# 将交易信号文件写入扫单文件csv
+csv = generate_csv_file()
+
+# 将扫单文件存入交易主机
+import datetime
+csv.to_csv(r'\\192.168.0.29\Stock\orders\RSI\order_{}.{}00000.csv'.format('RSItest', datetime.datetime.now().strftime('%Y%m%d%H%M'))
+            , header=False, index=False)
+
+tracing_file = openpyxl.load_workbook("模拟盘PnL跟踪.xlsx")
+tracing_sheet = tracing_file.active
+today_share_record = [share.iloc[-1].name] # 日期时间
+today_share_record += list(share.iloc[-1].values) # 持仓数
+tracing_sheet.append(list(today_share_record))
+tracing_file.save("模拟盘PnL跟踪.xlsx")
+print("5000W策略PnL",daily_pnl.T.sum().iloc[-1])
