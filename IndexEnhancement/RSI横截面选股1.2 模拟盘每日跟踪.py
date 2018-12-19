@@ -302,7 +302,6 @@ NAV0 = (cum_pnl / CAPITAL)+1                        # 净值 按月复利 每年
 换手率=((share * price).divide((share * price).T.sum(),axis=0).diff().abs().T.sum() / 2)
 
 
-图像绘制()
 
 price = pd.concat([price, data_close], sort=False)
 priceFill = price.fillna(method='ffill')

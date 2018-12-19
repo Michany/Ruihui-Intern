@@ -396,7 +396,7 @@ def main(self, tablename_dict):
     return 
 if __name__ == '__main__':
     #tablename_set = ['test0724','stat_index_股份制商业银行_不良贷款与净息差','test0724','stat_index_农商行_不良贷款与净息差','stat_index_2018年一季度不良率']
-    tablename_set = ['RSI横截面_纯多头_sh300_日频_每年重置_'+date.today().strftime('%Y-%m-%d')]
+    tablename_set = ['PE-ROE hs300 '+date.today().strftime('%Y-%m-%d')]
     # tablename_set = ['RSI横截面_纯多头_sh300_日频']
     #title用来改标题
     #strtest用来改文本，每行用<br/>隔开

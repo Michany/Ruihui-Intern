@@ -348,6 +348,10 @@ def plot_pnl(df,tablename,savesize=[90/25.4,135/25.4],figname='fig1',title = '',
                 ans['NAV'] = (ans['MarketValue'][0] + ans['Total_pnl']) / (ans['MarketValue'][0] + ans['Total_pnl'][0])
         except:
             raise Exception(tablename + ": Can't find \"NAV\", \"net\" or \"pnl\", Please specify in the source code...")
+        if 'Daily_pnl' in ans.columns:
+            pass
+        else:
+            ans['Daily_pnl'] = ans['NAV'].diff()
         ax = fig.add_subplot(211)
         ax.plot(ans.index, ans['NAV'], linewidth=2, label='净值')
         ax.fill_between(ans.index, ans['NAV'], y2=1,
@@ -406,6 +410,7 @@ def summarize(t: pd.DataFrame):
         for i in year_group.index:
             if temp_max_value < year_group['NAV'][i]:
                 current_start_date = year_group['Date/Time'][i]
+                # print(i, current_start_date)
                 temp_max_value = max(temp_max_value, year_group['NAV'][i])
                 continous = False
             else:
@@ -416,8 +421,11 @@ def summarize(t: pd.DataFrame):
                 else:
                     if continous:
                         continous = False
-                        start_date = current_start_date
-                        end_date = year_group['Date/Time'][i]
+                    start_date = current_start_date
+                    end_date = year_group['Date/Time'][i]
+        if continous:#最后一天还是回撤了
+                start_date = current_start_date
+                end_date = year_group['Date/Time'][i]
         year = year_group['Year'][i]
         yearly_drawdown[year] = max_draw_down, start_date, end_date
         try:
