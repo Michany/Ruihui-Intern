@@ -391,7 +391,7 @@ def main(self, tablename_dict):
     for tablename in tablename_dict:
         print("----- Generating:",tablename,)
         excel_rows = get_allImage(tablename)
-        hello_pdf(title='RSI横截面（纯多头）',strtest='锐汇资产团队介绍：基金经理和投资顾问具有高盛、美林等十年以上工作经验，以及拥有近20年的投资经验，广泛参与国内外资本市场运作。自主开发投资及研究自动化系统,从大数据中挖掘相关信息并提供相关咨询报告。',
+        hello_pdf(title='PE-ROE',strtest='锐汇资产团队介绍：基金经理和投资顾问具有高盛、美林等十年以上工作经验，以及拥有近20年的投资经验，广泛参与国内外资本市场运作。自主开发投资及研究自动化系统,从大数据中挖掘相关信息并提供相关咨询报告。',
                   tablename = tablename, excel_rows = excel_rows)
     return 
 if __name__ == '__main__':
