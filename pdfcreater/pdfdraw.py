@@ -391,13 +391,13 @@ def main(self, tablename_dict):
     for tablename in tablename_dict:
         print("----- Generating:",tablename,)
         excel_rows = get_allImage(tablename)
-        hello_pdf(title='PE-ROE NAV0',strtest='锐汇资产团队介绍：基金经理和投资顾问具有高盛、美林等十年以上工作经验，以及拥有近20年的投资经验，广泛参与国内外资本市场运作。自主开发投资及研究自动化系统,从大数据中挖掘相关信息并提供相关咨询报告。',
+        hello_pdf(title='RSI',strtest='锐汇资产团队介绍：基金经理和投资顾问具有高盛、美林等十年以上工作经验，以及拥有近20年的投资经验，广泛参与国内外资本市场运作。自主开发投资及研究自动化系统,从大数据中挖掘相关信息并提供相关咨询报告。',
                   tablename = tablename, excel_rows = excel_rows)
     return 
 if __name__ == '__main__':
     #tablename_set = ['test0724','stat_index_股份制商业银行_不良贷款与净息差','test0724','stat_index_农商行_不良贷款与净息差','stat_index_2018年一季度不良率']
-    tablename_set = ['PE-ROE hs300 NAV0'+date.today().strftime('%Y-%m-%d')]
-    # tablename_set = ['RSI横截面_纯多头_sh300_日频']
+    # tablename_set = ['PE-ROE hs300 NAV0'+date.today().strftime('%Y-%m-%d')]
+    tablename_set = ['RSI横截面_纯多头_sh300_日频'+date.today().strftime('%Y-%m-%d')]
     #title用来改标题
     #strtest用来改文本，每行用<br/>隔开
     for tablename in tablename_set:
