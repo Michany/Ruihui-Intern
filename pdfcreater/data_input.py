@@ -29,7 +29,7 @@ def read_file(path):
 
 def view_table(DBname = 'StrategyOutput'):
     #用来查看指定数据库里表名列表
-    engine = create_engine('mssql+pymssql://sa:abc123@192.168.0.28:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
+    engine = create_engine('mssql+pymssql://sa:abc123@10.0.0.51:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
     sql = "select * from sysobjects  where xtype='U';"
     res = engine.execute(sql);
     table_list = pd.DataFrame(res.fetchall(),columns = res.keys())  
@@ -41,7 +41,7 @@ def input_SOdata(DBname,table_name,df,order='fail',chinesecol=[]):
     #'replace'：替换已经存在表格
     #'append'：向已经存在的表格后新增数据
     #chinesecol:当表内容（不是列名和表名）含中文时,将中文列列名标出，格式为list，如['银行类型']，或者【'银行类型','公司名称']
-    engine = create_engine('mssql+pymssql://sa:abc123@192.168.0.28:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
+    engine = create_engine('mssql+pymssql://sa:abc123@10.0.0.51:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
     tablelist = view_table();
     #
     if chinesecol !=[]:
@@ -64,8 +64,8 @@ def input_SOdata(DBname,table_name,df,order='fail',chinesecol=[]):
         return 'succeed!'
  
 def get_SOdata(DBname,table_name='mhqtable',columns = ['*'],time_range='no'):
-    #con=pymssql.connect(server='192.168.0.28',port=1433,user='sa',password='abc123',database=DBname,charset='utf8')
-    engine = create_engine('mssql+pymssql://sa:abc123@192.168.0.28:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
+    #con=pymssql.connect(server='10.0.0.51',port=1433,user='sa',password='abc123',database=DBname,charset='utf8')
+    engine = create_engine('mssql+pymssql://sa:abc123@10.0.0.51:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
     con = engine.connect()
     columns_name = ''.join([x+',' for x in columns])
     columns_name = columns_name[:-1]
@@ -90,7 +90,7 @@ def get_SOdata(DBname,table_name='mhqtable',columns = ['*'],time_range='no'):
 
 def delete_table(DBname = 'StrategyOutput',table_name = 'mhqtest',safe_order = 'on' ):
     #请非常慎用，为保险起见,safe_order='on'时将本地生成scv文件保存   
-    engine = create_engine('mssql+pymssql://sa:abc123@192.168.0.28:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
+    engine = create_engine('mssql+pymssql://sa:abc123@10.0.0.51:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
     if DBname.lower() == 'rawdata':
         return 'you cannot change rawdata'
     if safe_order == 'on':
@@ -104,7 +104,7 @@ def del_rowORcolumns(DBname,table_name,limit,axis = 0 ):
     #用来删除某一行或某一列，输入表名，列名，删除行的对应值
     #axis = 0删除列，axis = 1，删除行
     #limit可变参数，删除列时为列名，删除行时为[列名，条件]，条件可以为字符串也可以为数字
-    engine = create_engine('mssql+pymssql://sa:abc123@192.168.0.28:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
+    engine = create_engine('mssql+pymssql://sa:abc123@10.0.0.51:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
     if DBname.lower() == 'rawdata':
         return 'you cannot change rawdata'
     if axis == 1:
@@ -120,7 +120,7 @@ def del_rowORcolumns(DBname,table_name,limit,axis = 0 ):
 
 def view_tabletime(DBname,table_name,days='20'):
     #用于查看任意有时间列表格时间，days意味取多少最近时间
-    engine = create_engine('mssql+pymssql://sa:abc123@192.168.0.28:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
+    engine = create_engine('mssql+pymssql://sa:abc123@10.0.0.51:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
     con = engine.connect()
     sql = "select column_name, data_type, LEN(data_type) from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME='%s'"%table_name
     #sql2 = "select name as colName,type_name(xtype) as colType,length from syscolumns where id=object_id('%s')"%table_name
@@ -141,7 +141,7 @@ def view_tabletime(DBname,table_name,days='20'):
 def add_columns(DBname,table_name, df):
     #用于在表格中添加列，可多列，要有时间列，放在第一列，时间序列要与数据库中一致
     time = df.sort_values(by = [df.iloc[:,0].name],axis = 0, ascending = False).iloc[:,0].reset_index(drop = True)
-    engine = create_engine('mssql+pymssql://sa:abc123@192.168.0.28:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
+    engine = create_engine('mssql+pymssql://sa:abc123@10.0.0.51:1433/%s'%DBname)#数据库类型+驱动://用户名:密码@IP:端口/数据库名称
     dbtime = view_tabletime(table_name,'all')
     if time.size>dbtime.size:
         return '时间长度超出'

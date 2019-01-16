@@ -29,13 +29,13 @@ TODAY = datetime.date.today().strftime('%Y-%m-%d')
 # 获取标的数据
 underLying = 'hs300'#zz500
 if underLying == 'hs300':
-    conn = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
+    conn = pymssql.connect(server='10.0.0.51', port=1433, user='sa', password='abc123', database='WIND')
     SQL = '''SELECT b.code FROM HS300COMPWEIGHT as b
     where b.[Date] BETWEEN '2018-07-01' and '2018-07-03' ORDER BY b.code'''
     hs300 = get_index_day('000300.SH', '2007-02-01', TODAY, '1D')
     hs300 = hs300.sclose
 elif underLying == 'zz500':
-    conn = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='RawData')
+    conn = pymssql.connect(server='10.0.0.51', port=1433, user='sa', password='abc123', database='RawData')
     SQL = '''SELECT b.code FROM [中证500成分权重] as b
     where b.[Date] BETWEEN '2018-06-21' and '2018-07-03' '''
     zz500 = get_index_day('000905.SH', '2007-02-01', TODAY, '1D')
@@ -44,9 +44,9 @@ elif underLying == 'hsi':
     hsi = get_hk_index_day('HSI.HI', '2007-02-01', TODAY, '1D')
     hsi = hsi.sclose
 elif underLying == 'zz800':
-    conn1 = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
+    conn1 = pymssql.connect(server='10.0.0.51', port=1433, user='sa', password='abc123', database='WIND')
     SQL1 = '''SELECT b.code FROM HS300COMPWEIGHT as b where b.[Date] BETWEEN '2018-07-01' and '2018-07-03' ORDER BY b.code'''
-    conn2 = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='RawData')
+    conn2 = pymssql.connect(server='10.0.0.51', port=1433, user='sa', password='abc123', database='RawData')
     SQL2 = '''SELECT b.code FROM [中证500成分权重] as b where b.[Date] BETWEEN '2018-06-21' and '2018-07-03' '''
     zz800 =  get_index_day('000906.SH', '2007-02-01', TODAY, '1D')
     zz800 = zz800.sclose

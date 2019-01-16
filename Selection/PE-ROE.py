@@ -206,6 +206,9 @@ daily_pnl = pos * priceFill.pct_change()
 daily_pnl = daily_pnl['2010-04-30':]#['2015-04-16':]
 NAV = (daily_pnl.T.sum()+1).cumprod() #计算净值
 NAV0 = 1+(daily_pnl.T.sum()).cumsum() #计算净值
+NAV.name, NAV0.name = 'NAV', 'NAV'
+NAV.to_excel("NAV.xlsx")
+NAV0.to_excel("NAV0.xlsx")
 
 IC = IC.resample('M').last()
 IF = IF.resample('M').last()
@@ -214,7 +217,8 @@ IF = IF.resample('M').last()
 plt.figure(figsize=(8,6))
 NAV.plot(label='Selection')
 if 大盘股:
-    (IF.CLOSE.pct_change()+1).cumprod().plot(label='000300.SH')
+#    (IF.CLOSE.pct_change()+1).cumprod().plot(label='000300.SH')
+    (IF.CLOSE.pct_change()+1).cumprod().plot(label='IF')
     (NAV/(IF.CLOSE.pct_change()+1).cumprod()).plot(label='Exess Return')
 else:
     (IC.CLOSE.pct_change()+1).cumprod().plot(label='000905.SH')
@@ -229,14 +233,24 @@ def check(y):#看一下具体每一年的表现
 #    (hs300[year]/hs300[year].iloc[0]).plot(c='black')
 #    plt.show()
     print(y, (NAV[year]/NAV[year].iloc[0]).iloc[-1]-1,(hs300[year]/hs300[year].iloc[0]).iloc[-1]-1)
-
+def check_futures(y):
+    year = str(y)
+#    (NAV[year]/NAV[year].iloc[0]).plot()
+#    (hs300[year]/hs300[year].iloc[0]).plot(c='black')
+#    plt.show()
+    print(y, (NAV[year]/NAV[year].iloc[0]).iloc[-1]-1,(IF.IF[year]/IF.IF[year].iloc[0]).iloc[-1]-1)
+    
 for i in range(2010,2019):
     check(i)
-temp = (daily_pnl.T.sum()-hs300.pct_change()).fillna(0)
-plt.hist(temp)
+for i in range(2010,2019):
+    check_futures(i)
+temp = pd.concat([NAV.pct_change(),IF.IF.pct_change()],axis=1)
+temp['NAV-IF']=temp[0]-temp['IF']
+temp.to_excel("收益对比temp.xlsx")
 #%%
 def excel_output():
-    excess = (daily_pnl.T.sum()-IF.CLOSE.pct_change()).cumsum()+1
+    excess = (daily_pnl.T.sum()-IF.IF.pct_change()).cumsum()+1
     excess.name = 'NAV'
-    excess.to_excel('excess return.xlsx')
-#excel_output()
+    excess.to_excel('excess return NAV.xlsx')
+    NAV.to_excel('NAV.xlsx')
+excel_output()
