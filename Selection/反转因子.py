@@ -13,7 +13,7 @@ TODO
 
 import datetime
 import time
-from data_reader import get_index_day, get_muti_close_day
+from data_reader import get_stock_day, get_index_day, get_muti_close_day
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,11 +24,20 @@ import talib
 from sklearn.linear_model import LinearRegression
 
 import pymssql
+from WindPy import w
+from WindPy import *
 
 N = 60
-year_start = 2010
+year_start = 2012
 year_end = 2017
 data = get_stock_day('600000.SH','2010-01-01','2017-12-31')
+
+w.start()
+rawdata = w.wsd("600000.SH", "dealnum", "2010-01-01", "2017-12-31", "")
+rawdata = pd.DataFrame(rawdata.Data[0], index=rawdata.Times, columns=['dealnum'])
+data = pd.concat([data, rawdata],axis=1)
+data['D']=data['amt']/data['dealnum']
+data = data['2012':]
 # %% 选股
 def collect_data():
     data = pd.DataFrame()
@@ -47,14 +56,14 @@ def M_high(data):
     R = (1+data['sclose'].pct_change())
     for i in range(60, len(data)+1): # i代表行数，i从1开始计数，所以在index[i]时需要减1
         if data.index[i-1] in (dateList):# 月末不一定是当月交易日最后一天
-            this = data['vol'].iloc[i-60:i]
+            this = data['D'].iloc[i-60:i]
             rank = this.rank()
             yield data.index[i-1], R.where(rank>30).fillna(1).cumprod().iloc[-1]-1
 def M_low(data):
     R = (1+data['sclose'].pct_change())
     for i in range(60, len(data)+1): # i代表行数，i从1开始计数，所以在index[i]时需要减1
         if data.index[i-1] in (dateList):# 月末不一定是当月交易日最后一天
-            this = data['vol'].iloc[i-60:i]
+            this = data['D'].iloc[i-60:i]
             rank = this.rank()#axis=1
             yield data.index[i-1], R.where(rank<=30).fillna(1).cumprod().iloc[-1]-1
 
@@ -63,8 +72,9 @@ def Ret(series, parameter = 20):
 
     
 dateList=当月最后一个交易日(data)
-Mhigh = pd.DataFrame([row for row in M_high(data)], columns = ['date','Mhigh'])
-Mlow = pd.DataFrame([row for row in M_low(data)], columns = ['date','Mlow'])
+Mhigh = pd.DataFrame([row for row in M_high(data)], columns = ['date','600000.SH']).set_index('date')
+Mlow = pd.DataFrame([row for row in M_low(data)], columns = ['date','600000.SH']).set_index('date')
+M = Mhigh - Mlow
 Ret20 = Ret(data, 20)
 
 #factors = pd.concat([Mhigh.set_index('date'), Mlow.set_index('date')],axis=1)

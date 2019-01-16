@@ -40,7 +40,7 @@ import pymssql
 def collect_data():
     global data, industry, pb, mv, t
 
-    conn=pymssql.connect(server='192.168.0.28',port=1433,user='sa',password='abc123',database='WIND') 
+    conn=pymssql.connect(server='10.0.0.51',port=1433,user='sa',password='abc123',database='WIND') 
     SQL='''
     SELECT
         a.S_INFO_WINDCODE as code,
@@ -159,11 +159,16 @@ print("\n行业内优选已完成，选股总用时 %5.3f 秒" % tpy)
 price = get_muti_close_day(selection.columns, '2009-03-31', '2018-11-30', freq = 'M', adjust=-1) # 回测时还是使用前复权价格
 priceFill = price.fillna(method='ffill') 
 price_change = priceFill.diff()
-hs300 = get_index_day('000300.SH','2009-4-30','2018-11-30','M').sclose
+hs300 = get_index_day('000300.SH','2010-4-30','2018-11-30','M').sclose
 szzz = get_index_day('000001.SH','2009-4-30','2018-11-30','M').sclose
 zz500 = get_index_day('000905.SH','2009-4-30','2018-11-30','M').sclose
-IC = pd.read_hdf("monthlyData-over10B.h5",'IC')
-IF = pd.read_hdf("monthlyData-over10B.h5",'IF')
+
+IF = pd.read_excel("IF.xlsx").set_index('date')
+#IC = pd.read_sql("SELECT date, settle1 FROM DCindexfutures WHERE name like 'IC'", conn, index_col='date')
+IF['CLOSE']=IF['IF']
+#IC['CLOSE']=IC['settle1']
+#IC = pd.read_hdf("monthlyData-over10B.h5",'IC')
+#IF = pd.read_hdf("monthlyData-over10B.h5",'IF')
 # 剔除没有价格数据的部分股票
 l=list(mv.columns)
 for i in price.columns:
@@ -220,12 +225,12 @@ plt.legend(fontsize=14)
 #%%
 def check(y):#看一下具体每一年的表现
     year = str(y)
-    
 #    (NAV[year]/NAV[year].iloc[0]).plot()
 #    (hs300[year]/hs300[year].iloc[0]).plot(c='black')
-    print(y, (NAV[year]/NAV[year].iloc[0]).iloc[-1]-1,(hs300[year]/hs300[year].iloc[0]).iloc[-1]-1)
 #    plt.show()
-for i in range(2009,2019):
+    print(y, (NAV[year]/NAV[year].iloc[0]).iloc[-1]-1,(hs300[year]/hs300[year].iloc[0]).iloc[-1]-1)
+
+for i in range(2010,2019):
     check(i)
 temp = (daily_pnl.T.sum()-hs300.pct_change()).fillna(0)
 plt.hist(temp)
@@ -234,4 +239,4 @@ def excel_output():
     excess = (daily_pnl.T.sum()-IF.CLOSE.pct_change()).cumsum()+1
     excess.name = 'NAV'
     excess.to_excel('excess return.xlsx')
-excel_output()
+#excel_output()

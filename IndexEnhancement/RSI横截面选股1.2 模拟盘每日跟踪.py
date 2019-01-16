@@ -21,13 +21,13 @@ TODAY = datetime.date.today().strftime('%Y-%m-%d')
 # 获取标的数据
 underLying = 'hs300'#zz500
 if underLying == 'hs300':
-    conn = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
+    conn = pymssql.connect(server='10.0.0.51', port=1433, user='sa', password='abc123', database='WIND')
     SQL = '''SELECT b.code FROM HS300COMPWEIGHT as b
     where b.[Date] BETWEEN '2018-07-01' and '2018-07-03' ORDER BY b.code'''
     hs300 = get_index_day('000300.SH', '2007-02-01', TODAY, '1D')
     hs300 = hs300.sclose
 elif underLying == 'zz500':
-    conn = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='RawData')
+    conn = pymssql.connect(server='10.0.0.51', port=1433, user='sa', password='abc123', database='RawData')
     SQL = '''SELECT b.code FROM [中证500成分权重] as b
     where b.[Date] BETWEEN '2018-06-21' and '2018-07-03' '''
     zz500 = get_index_day('000905.SH', '2007-02-01', TODAY, '1D')
@@ -36,9 +36,9 @@ elif underLying == 'hsi':
     hsi = get_hk_index_day('HSI.HI', '2007-02-01', TODAY, '1D')
     hsi = hsi.sclose
 elif underLying == 'zz800':
-    conn1 = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
+    conn1 = pymssql.connect(server='10.0.0.51', port=1433, user='sa', password='abc123', database='WIND')
     SQL1 = '''SELECT b.code FROM HS300COMPWEIGHT as b where b.[Date] BETWEEN '2018-07-01' and '2018-07-03' ORDER BY b.code'''
-    conn2 = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='RawData')
+    conn2 = pymssql.connect(server='10.0.0.51', port=1433, user='sa', password='abc123', database='RawData')
     SQL2 = '''SELECT b.code FROM [中证500成分权重] as b where b.[Date] BETWEEN '2018-06-21' and '2018-07-03' '''
     zz800 =  get_index_day('000906.SH', '2007-02-01', TODAY, '1D')
     zz800 = zz800.sclose
@@ -148,7 +148,24 @@ NAV0 = (cum_pnl / CAPITAL)+1                        # 净值 按月复利 每年
 print("每日换手率 {:.2%}".format(换手率.mean()))
 print("年化换手率 {:.2%}".format(换手率.mean()*250))
 print(换手率.resample('y').sum())
-
+def 图像绘制():
+    global hs300
+    plt.rcParams["font.sans-serif"] = ["SimHei"]
+    plt.rcParams["axes.unicode_minus"] = False
+    plt.figure(figsize=(9,6))
+    
+    NAV.plot(label='按月复利 每年重置 累计值')
+    NAV0.plot(label='按月复利 每年重置')
+    exec(underLying+' = '+underLying+".reindex(daily_pnl.index)")
+    exec(underLying+' = '+underLying+'/'+underLying+'.iloc[0]')
+    exec(underLying+".plot(label='"+underLying+"')")
+    plt.legend(fontsize=11)
+    # plt.title('RSI参数={}，日频，无手续费'.format(RSI_arg),fontsize=15)
+    plt.title('RSI参数={}，日频，手续费{:.1f}‰'.format(RSI_arg, fee_rate*1000), fontsize=15)
+    # plt.title('RSI参数={}，交易日={}，手续费{:.1f}‰'.format(RSI_arg, 交易日+1, fee_rate*1000), fontsize=15)
+    plt.grid(axis='both')
+    plt.show()
+图像绘制()
 #%% 获取实时数据
 from WindPy import *
 w.start()
@@ -229,8 +246,8 @@ csv = generate_csv_file()
 
 # 将扫单文件存入交易主机
 import datetime
-csv.to_csv(r'\\192.168.0.29\Stock\orders\RSI\order_{}.{}00000.csv'.format('RSItest', datetime.datetime.now().strftime('%Y%m%d%H%M'))
-            , header=False, index=False)
+#csv.to_csv(r'\\192.168.0.29\Stock\orders\RSI\order_{}.{}00000.csv'.format('RSItest', datetime.datetime.now().strftime('%Y%m%d%H%M'))
+#            , header=False, index=False)
 
 #%% 模拟盘PnL跟踪
 import openpyxl
