@@ -235,9 +235,9 @@ def check(y):#看一下具体每一年的表现
     print(y, (NAV[year]/NAV[year].iloc[0]).iloc[-1]-1,(hs300[year]/hs300[year].iloc[0]).iloc[-1]-1)
 def check_futures(y):
     year = str(y)
-#    (NAV[year]/NAV[year].iloc[0]).plot()
-#    (hs300[year]/hs300[year].iloc[0]).plot(c='black')
-#    plt.show()
+    (NAV[year]/NAV[year].iloc[0]).plot()
+    (hs300[year]/hs300[year].iloc[0]).plot(c='black')
+    plt.show()
     print(y, (NAV[year]/NAV[year].iloc[0]).iloc[-1]-1,(IF.IF[year]/IF.IF[year].iloc[0]).iloc[-1]-1)
     
 for i in range(2010,2019):

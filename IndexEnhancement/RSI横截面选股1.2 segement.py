@@ -12,7 +12,7 @@
 - price 分为交易/停牌，需要区分对待；对于停牌的，需要用nan，并在计算中不予以考虑
 - 模拟盘PnL监测
 - Wind数据 10个一组 获取
-updated on 2018/11/27
+updated on 2019/1/17
 """
 import datetime
 import pandas as pd
@@ -24,47 +24,27 @@ import pymssql
 # pylint: disable=E1101,E1103
 # pylint: disable=W0212,W0231,W0703,W0622
 CAPITAL = 5e7
-TODAY = '2010-12-31'#datetime.date.today().strftime('%Y-%m-%d')
+YEAR = 2012
+START = '%s-11-01' % (YEAR-1) #前三个月的数据需要用来计算RSI
+TODAY = '%s-12-31' % YEAR#datetime.date.today().strftime('%Y-%m-%d')
 
 # 获取标的数据
 underLying = 'hs300'#zz500
 if underLying == 'hs300':
-    conn = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
+    conn = pymssql.connect(server='10.0.0.51', port=1433, user='sa', password='abc123', database='WIND')
     SQL = '''SELECT b.code FROM HS300COMPWEIGHT as b
-    where b.[Date] BETWEEN '2009-07-01' and '2009-07-30' ORDER BY b.code'''
-    hs300 = get_index_day('000300.SH', '2007-02-01', TODAY, '1D')
-    hs300 = hs300.sclose
-elif underLying == 'zz500':
-    conn = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='RawData')
-    SQL = '''SELECT b.code FROM [中证500成分权重] as b
-    where b.[Date] BETWEEN '2018-06-21' and '2018-07-03' '''
-    zz500 = get_index_day('000905.SH', '2007-02-01', TODAY, '1D')
-    zz500 = zz500.sclose
-elif underLying == 'hsi':
-    hsi = get_hk_index_day('HSI.HI', '2007-02-01', TODAY, '1D')
-    hsi = hsi.sclose
-elif underLying == 'zz800':
-    conn1 = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='WIND')
-    SQL1 = '''SELECT b.code FROM HS300COMPWEIGHT as b where b.[Date] BETWEEN '2018-07-01' and '2018-07-03' ORDER BY b.code'''
-    conn2 = pymssql.connect(server='192.168.0.28', port=1433, user='sa', password='abc123', database='RawData')
-    SQL2 = '''SELECT b.code FROM [中证500成分权重] as b where b.[Date] BETWEEN '2018-06-21' and '2018-07-03' '''
-    zz800 =  get_index_day('000906.SH', '2007-02-01', TODAY, '1D')
-    zz800 = zz800.sclose
+    where b.[Date] BETWEEN '%s-07-01' and '%s-07-30' ORDER BY b.code''' % (YEAR, YEAR)
+    hs300 = get_index_day('000300.SH', START, TODAY, '1D')
+    hs300 = hs300[str(YEAR)].sclose
+
 if underLying=='hs300' or underLying=='zz500':
     data = pd.read_sql(SQL, conn)
-elif underLying == 'zz800':
-    data1 = pd.read_sql(SQL1, conn1)
-    data2 = pd.read_sql(SQL2, conn2)
-    data = pd.concat([data1, data2], ignore_index=True)
-    del data1, data2
-elif underLying=='hsi':
-    data = pd.read_excel(r"C:\Users\meiconte\Documents\RH\IndexEnhancement\HK100亿_01.xlsx",sheet_name='Database')
 pool = list(data['code'])
 del data
 
 # 
 def 获取数据():
-    START_DATE = '2007-02-01'
+    START_DATE = START
     END_DATE = TODAY
     print('正在获取数据...自 {} 至 {}'.format(START_DATE, END_DATE))
     price = get_muti_close_day(pool, START_DATE, END_DATE, HK=(underLying=='hsi'))
@@ -175,11 +155,13 @@ def 图像绘制():
     plt.rcParams["axes.unicode_minus"] = False
     plt.figure(figsize=(9,6))
     
-    NAV.plot(label='按月复利 每年重置 累计值')
-    NAV0.plot(label='按月复利 每年重置')
-    exec(underLying+' = '+underLying+".reindex(daily_pnl.index)")
-    exec(underLying+' = '+underLying+'/'+underLying+'.iloc[0]')
-    exec(underLying+".plot(label='"+underLying+"')")
+    NAV[str(YEAR)].plot(label='按月复利 每年重置 累计值')
+#    NAV0.plot(label='按月复利 每年重置')
+    hs300 = hs300/hs300.iloc[0]
+    hs300.plot(label='hs300')
+#    exec(underLying+' = '+underLying+".reindex(daily_pnl.index)")
+#    exec(underLying+' = '+underLying+'/'+underLying+'.iloc[0]')
+#    exec(underLying+".plot(label='"+underLying+"')")
     plt.legend(fontsize=11)
     # plt.title('RSI参数={}，日频，无手续费'.format(RSI_arg),fontsize=15)
     plt.title('RSI参数={}，日频，手续费{:.1f}‰'.format(RSI_arg, fee_rate*1000), fontsize=15)
@@ -187,18 +169,31 @@ def 图像绘制():
     plt.grid(axis='both')
     plt.show()
 图像绘制()
+#%% 输出
+posSlow[str(YEAR)].T.sum().plot()
+print(YEAR, "RSI:", NAV.iloc[-1]-1, "hs300:", (hs300/hs300.iloc[0]).iloc[-1]-1)
+nav0 = NAV[str(YEAR)]
+nav0.name = 'NAV'
+hs300.name = 'hs300'
+pnl=(daily_pnl.T.sum() / CAPITAL)[str(YEAR)]
+pnl.name = 'pct_change'
+pos = posSlow[str(YEAR)].T.sum()[str(YEAR)]
+pos.name='position'
+summary = pd.concat([nav0, pnl, hs300.pct_change(), pos], axis=1)
+sumall = pd.concat([sumall, summary])
 #%% See what happened
-for index in price.columns:
-    posSlow[index]['2009'].plot()
-    plt.ylim((-0.001, 0.014))
-    plt.twinx()
-    price[index]['2009'].plot(c='black')
-    plt.title(index)
-    plt.show()
-    
-    daily_pnl[index]['2009'].cumsum().plot(c='gold')
-    plt.twinx()
-    price[index]['2009'].plot(c='black')
-    plt.show()
-    
-    if input()!='':break
+def see():
+    for index in price.columns:
+        posSlow[index]['2009'].plot()
+        plt.ylim((-0.001, 0.014))
+        plt.twinx()
+        price[index]['2009'].plot(c='black')
+        plt.title(index)
+        plt.show()
+        
+        daily_pnl[index]['2009'].cumsum().plot(c='gold')
+        plt.twinx()
+        price[index]['2009'].plot(c='black')
+        plt.show()
+        
+        if input()!='':break
