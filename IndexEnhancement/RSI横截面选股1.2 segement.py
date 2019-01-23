@@ -24,7 +24,8 @@ import pymssql
 # pylint: disable=E1101,E1103
 # pylint: disable=W0212,W0231,W0703,W0622
 CAPITAL = 5e7
-YEAR = 2012
+################# 修改年份 ######################
+YEAR = 2017
 START = '%s-11-01' % (YEAR-1) #前三个月的数据需要用来计算RSI
 TODAY = '%s-12-31' % YEAR#datetime.date.today().strftime('%Y-%m-%d')
 
@@ -180,7 +181,8 @@ pnl.name = 'pct_change'
 pos = posSlow[str(YEAR)].T.sum()[str(YEAR)]
 pos.name='position'
 summary = pd.concat([nav0, pnl, hs300.pct_change(), pos], axis=1)
-sumall = pd.concat([sumall, summary])
+
+# sumall = pd.concat([sumall, summary])
 #%% See what happened
 def see():
     for index in price.columns:
