@@ -1,5 +1,5 @@
 # Ruihui-Intern
-_Intern: Michael Wang, From March 2018 so far_
+_Intern: Michael Wang, From Mar. 2018 to Jan. 2019_
 
 ## Projects during Ruihui Internship...  
 Projects listed as follows (in chronical order):
@@ -64,7 +64,7 @@ Projects listed as follows (in chronical order):
    _stable version: Pyback roe选股.py_  
   
 -------------------------------------------------------------- 
-6. Options (Currently working on)  
+1. Options
    Designing a product for those who already hold the long position of ZE901 (core)  
 
    The decision of buying or writing an option is made based on the prediction of the core price.  
@@ -131,7 +131,7 @@ Projects listed as follows (in chronical order):
     
 
 -------------------------------------------------------------- 
-9. RNN / LSTM (Currently working on)  
+1. RNN / LSTM  
    Pytorch
 
    Alpha should probably be the target.
